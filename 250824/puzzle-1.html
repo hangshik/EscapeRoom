@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>일차방정식 1단계</title>
+  <style>
+    .quiz-container { text-align: center; }
+    .quiz { font-size: 24px; margin: 20px 0; }
+    #answer { padding: 8px 12px; font-size: 18px; width: 220px; text-align: center; border: 1px solid #ced4da; border-radius: 6px; }
+    #result { font-size: 20px; margin-top: 12px; font-weight: bold; height: 24px; }
+    #next-stage-btn {
+      font-size: 18px; margin-top: 10px; padding: 10px 20px; border: none;
+      border-radius: 8px; cursor: pointer; background-color: #28a745;
+      color: white; font-weight: bold; transition: background-color 0.2s;
+    }
+    #next-stage-btn:hover { background-color: #218838; }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <h2>1단계: 일차방정식</h2>
+    <img src="p1.jpg" width="450px">
+    <div class="quiz">문제: <strong>2x = 2</strong></div>
+    <input type="number" id="answer" style="width: 100px; height: 30px;">
+    <button class="wide" onclick="checkAnswer()" style="font-size: 15px; padding: 14px; border: none; border-radius: 8px; background: #339af0; color: #fff;">확인</button>
+    
+    <p id="result"></p>
+    
+    
+  </div>
+
+  <script>
+    window.addEventListener("message", (event) => {
+      if (!event.data || !event.data.type) return;
+      const answerInput = document.getElementById("answer");
+      if (answerInput.disabled) return;
+
+      if (event.data.type === "answer") {
+        answerInput.value = event.data.value ?? "";
+      } else if (event.data.type === "submit") {
+        checkAnswer();
+      }
+    });
+
+    function checkAnswer() {
+      const answerInput = document.getElementById("answer");
+      const resultEl = document.getElementById("result");
+      const isCorrect = (answerInput.value.trim() === "1");
+      
+
+      if (isCorrect) {
+        resultEl.textContent = "정답! 1!";
+        resultEl.style.color = "green";
+        answerInput.disabled = true;
+
+        // [수정] "1단계를 클리어했다"는 신호를 문서 전체에 보냅니다.
+        $(document).trigger('clearStage', { stage: 1 });
+
+        const nextButton = document.createElement('button');
+        nextButton.id = 'next-stage-btn';
+        nextButton.textContent = '다음 단계 →';
+        nextButton.onclick = advanceToNextStage;
+        resultEl.after(nextButton);
+
+      } else {
+        resultEl.textContent = "틀렸습니다. 다시 시도하세요.";
+        resultEl.style.color = "red";
+      }
+    }
+
+    function advanceToNextStage() {
+      // [수정] "2단계를 선택하겠다"는 신호를 문서 전체에 보냅니다.
+      $(document).trigger('selectStage', { stage: 2 });
+    }
+
+    document.getElementById("answer").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") checkAnswer();
+    });
+  </script>
+</body>
+</html>

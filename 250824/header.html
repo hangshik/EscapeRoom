@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    .header-container { text-align: center; }
+    .stage-button {
+      font-size: 16px; margin: 3px; padding: 8px 16px; width: 82px;
+      border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;
+      background-color: #f1f3f5; color: #495057;
+      font-weight: 500; transition: all 0.2s ease;
+    }
+    .stage-button:disabled { cursor: not-allowed; opacity: 0.6; }
+    .stage-button:not(:disabled):hover { border-color: #868e96; }
+    .active {
+      background-color: #339af0; color: white; border-color: #339af0;
+    }
+    .stage-success {
+      background-color: #28a745; color: white; border-color: #28a745;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-container">
+    <h1>방탈출</h1>
+    <div>
+      <button id="btn1" class="stage-button" onclick="selectStage(1)">1단계</button>
+      <button id="btn2" class="stage-button" onclick="selectStage(2)">2단계</button>
+      <button id="btn3" class="stage-button" onclick="selectStage(3)">3단계</button>
+      <button id="btn4" class="stage-button" onclick="selectStage(4)">4단계</button>
+      <button id="btn5" class="stage-button" onclick="selectStage(5)">5단계</button><br>
+      <button id="btn6" class="stage-button" onclick="selectStage(6)">6단계</button>
+      <button id="btn7" class="stage-button" onclick="selectStage(7)">7단계</button>
+      <button id="btn8" class="stage-button" onclick="selectStage(8)">8단계</button>
+      <button id="btn9" class="stage-button" onclick="selectStage(9)">9단계</button>
+      <button id="btn10" class="stage-button" onclick="selectStage(10)">10단계</button>
+    </div>
+  </div>
+
+  <script>
+    let currentStage = 1;
+    const clearedStages = new Set();
+    const availablePuzzles = [1, 2, 3];
+
+    function updateButtons() {
+      document.querySelectorAll('.stage-button').forEach(btn => {
+        const stageNum = parseInt(btn.id.replace('btn', ''), 10);
+        btn.classList.remove("active", "stage-success");
+
+        if (clearedStages.has(stageNum)) {
+          btn.classList.add("stage-success");
+        }
+        
+        btn.disabled = !clearedStages.has(stageNum) && stageNum > clearedStages.size + 1;
+      });
+      
+      const currentBtn = document.getElementById("btn" + currentStage);
+      if (currentBtn) {
+        currentBtn.classList.remove("stage-success");
+        currentBtn.classList.add("active");
+        currentBtn.disabled = false;
+      }
+    }
+
+    function selectStage(stage) {
+      // [수정] 사용 가능한 퍼즐이 아니면 함수 종료
+      if (!availablePuzzles.includes(stage)) return;
+
+      // [수정] 이미 클리어한 스테이지를 선택한 경우
+      if (clearedStages.has(stage)) {
+        // 해당 스테이지의 퍼즐만 불러오고, 버튼 색상이나 현재 스테이지 상태는 변경하지 않음
+        $("#puzzle").load(`puzzle-${stage}.html`);
+        return; 
+      }
+
+      // 아직 클리어하지 않은 스테이지를 선택한 경우 (기존 로직)
+      if (stage > clearedStages.size + 1) return;
+      
+      currentStage = stage;
+      updateButtons();
+      $("#puzzle").load(`puzzle-${stage}.html`);
+    }
+
+    $(document).ready(function() {
+      $(document).on('clearStage', function(event, data) {
+        if (data && data.stage) {
+          clearedStages.add(data.stage);
+          updateButtons();
+        }
+      });
+
+      $(document).on('selectStage', function(event, data) {
+        if (data && data.stage) {
+          selectStage(data.stage);
+        }
+      });
+
+      updateButtons();
+    });
+  </script>
+</body>
+</html>

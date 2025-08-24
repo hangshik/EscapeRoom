@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>일차방정식 2단계</title>
+  <style>
+    .quiz-container { text-align: center; }
+    .quiz { font-size: 24px; margin: 20px 0; }
+    #answer { padding: 8px 12px; font-size: 18px; width: 220px; text-align: center; border: 1px solid #ced4da; border-radius: 6px; }
+    #result { font-size: 20px; margin-top: 12px; font-weight: bold; height: 24px; }
+    /* [추가] 다음 단계 버튼 스타일 */
+    #next-stage-btn {
+      font-size: 18px; margin-top: 10px; padding: 10px 20px; border: none;
+      border-radius: 8px; cursor: pointer; background-color: #28a745;
+      color: white; font-weight: bold; transition: background-color 0.2s;
+    }
+    #next-stage-btn:hover { background-color: #218838; }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <h2>4단계: 일차방정식</h2>
+    <div class="quiz">문제: <strong>2x = 8</strong></div>
+    <input type="text" id="answer" placeholder="x의 값을 입력하세요">
+    <p id="result"></p>
+  </div>
+
+  <script>
+    window.addEventListener("message", (event) => {
+      if (!event.data || !event.data.type) return;
+      const answerInput = document.getElementById("answer");
+      if (answerInput.disabled) return;
+
+      if (event.data.type === "answer") {
+        answerInput.value = event.data.value ?? "";
+      } else if (event.data.type === "submit") {
+        checkAnswer();
+      }
+    });
+
+    function checkAnswer() {
+      const answerInput = document.getElementById("answer");
+      const resultEl = document.getElementById("result");
+      const isCorrect = (answerInput.value.trim() === "4");
+
+      if (isCorrect) {
+        resultEl.textContent = "정답! x = 4";
+        resultEl.style.color = "green";
+        answerInput.disabled = true;
+
+        $(document).trigger('clearStage', { stage: 4 });
+
+        // [추가] 다음 단계로 가는 버튼 생성
+        const nextButton = document.createElement('button');
+        nextButton.id = 'next-stage-btn';
+        nextButton.textContent = '다음 단계 →';
+        nextButton.onclick = advanceToNextStage;
+        resultEl.after(nextButton);
+
+      } else {
+        resultEl.textContent = "틀렸습니다. 다시 시도하세요.";
+        resultEl.style.color = "red";
+      }
+    }
+
+    // [추가] 다음 단계(3단계)로 신호를 보내는 함수
+    function advanceToNextStage() {
+      $(document).trigger('selectStage', { stage: 5 });
+    }
+
+    document.getElementById("answer").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") checkAnswer();
+    });
+  </script>
+</body>
+</html>
