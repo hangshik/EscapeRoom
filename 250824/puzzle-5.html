@@ -24,7 +24,7 @@
 <body>
   <div class="quiz-container">
     <br>
-    <img src="p2.png" width="450px" alt="문제 이미지">
+    <img src="p5.png" width="450px" alt="문제 이미지">
     <br><br>
     <input type="number" id="answer">
     <button class="button" onclick="checkAnswer()">확인</button>
@@ -34,23 +34,22 @@
     <button class="button" id="hint1-btn" onclick="toggleHint1()">힌트1</button>
     <button class="button" id="hint2-btn" onclick="toggleHint2()" disabled>힌트2</button>
     
-    <div id="hint1" class="quiz" style="display: none;">달력</div>
-    <div id="hint2" class="quiz" style="display: none;">2월은?</div>
+    <div id="hint1" class="quiz" style="display: none;">E=7</div>
+    <div id="hint2" class="quiz" style="display: none;">A=4</div>
   </div>
 
   <script>
     (function() {
-      const ThisStage = 2;
-      const correctAnswers = ["228", "229"];
+      const ThisStage = 5;
+      const correctAnswer = "42857";
     
       window.checkAnswer = function() {
         const answerInput = document.getElementById("answer");
         const resultEl = document.getElementById("result");
-        const userAnswer = answerInput.value.trim();
-        const isCorrect = correctAnswers.includes(userAnswer);
+        const isCorrect = (answerInput.value.trim() === correctAnswer);
     
         if (isCorrect) {
-          resultEl.textContent = `정답 → ${userAnswer}`;
+          resultEl.textContent = `정답 → ${correctAnswer}`;
           resultEl.style.color = "green";
           answerInput.disabled = true;
     

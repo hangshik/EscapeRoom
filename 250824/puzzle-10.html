@@ -24,7 +24,7 @@
 <body>
   <div class="quiz-container">
     <br>
-    <img src="p2.png" width="450px" alt="문제 이미지">
+    <img src="p10.png" width="450px" alt="문제 이미지">
     <br><br>
     <input type="number" id="answer">
     <button class="button" onclick="checkAnswer()">확인</button>
@@ -33,24 +33,25 @@
 
     <button class="button" id="hint1-btn" onclick="toggleHint1()">힌트1</button>
     <button class="button" id="hint2-btn" onclick="toggleHint2()" disabled>힌트2</button>
+    <button class="button" id="hint3-btn" onclick="toggleHint3()" disabled>힌트3</button>
     
-    <div id="hint1" class="quiz" style="display: none;">달력</div>
-    <div id="hint2" class="quiz" style="display: none;">2월은?</div>
+    <div id="hint1" class="quiz" style="display: none;">1은 -(빼기)를 의미합니다.</div>
+    <div id="hint2" class="quiz" style="display: none;">10은 +(더하기)를 의미합니다.</div>
+    <div id="hint3" class="quiz" style="display: none;">문제의 숫자를 한글로 적어보세요.</div>
   </div>
 
   <script>
     (function() {
-      const ThisStage = 2;
-      const correctAnswers = ["228", "229"];
+      const ThisStage = 10;
+      const correctAnswer = "10000";
     
       window.checkAnswer = function() {
         const answerInput = document.getElementById("answer");
         const resultEl = document.getElementById("result");
-        const userAnswer = answerInput.value.trim();
-        const isCorrect = correctAnswers.includes(userAnswer);
+        const isCorrect = (answerInput.value.trim() === correctAnswer);
     
         if (isCorrect) {
-          resultEl.textContent = `정답 → ${userAnswer}`;
+          resultEl.textContent = `정답 → ${correctAnswer}`;
           resultEl.style.color = "green";
           answerInput.disabled = true;
     
@@ -90,14 +91,17 @@
       });
     
       // 힌트 토글 함수
+      
       window.toggleHint1 = function() {
         const hint1 = document.getElementById("hint1");
         const hint2 = document.getElementById("hint2");
+        const hint3 = document.getElementById("hint3");
         const hint2Btn = document.getElementById("hint2-btn");
     
         if (hint1.style.display === "none") {
           hint1.style.display = "block";
           hint2.style.display = "none";
+          hint3.style.display = "none";
           hint2Btn.disabled = false;
           hint2Btn.classList.remove("disabled");
 
@@ -109,12 +113,17 @@
       };
     
       window.toggleHint2 = function() {
-        const hint2 = document.getElementById("hint2");
         const hint1 = document.getElementById("hint1");
+        const hint2 = document.getElementById("hint2");
+        const hint3 = document.getElementById("hint3");
+        const hint3Btn = document.getElementById("hint3-btn");
     
         if (hint2.style.display === "none") {
-          hint2.style.display = "block";
           hint1.style.display = "none";
+          hint2.style.display = "block";
+          hint3.style.display = "none";
+          hint3Btn.disabled = false;
+          hint3Btn.classList.remove("disabled");
 
           // 힌트2 사용 기록 (header에서 최대값 유지)
           $(document).trigger('updateHint', { stage: ThisStage, count: 2 });
@@ -122,7 +131,27 @@
           hint2.style.display = "none";
         }
       };
+
+      window.toggleHint3 = function() {
+        const hint1 = document.getElementById("hint1");
+        const hint2 = document.getElementById("hint2");
+        const hint3 = document.getElementById("hint3");
+    
+        if (hint3.style.display === "none") {
+          hint1.style.display = "none";
+          hint2.style.display = "none";
+          hint3.style.display = "block";
+          
+
+          // 힌트2 사용 기록 (header에서 최대값 유지)
+          $(document).trigger('updateHint', { stage: ThisStage, count: 3 });
+        } else {
+          hint3.style.display = "none";
+        }
+      };
+
     })();
   </script>
 </body>
 </html>
+

@@ -5,7 +5,7 @@
   <style>
     .header-container { text-align: center; }
     .stage-button {
-      font-size: 16px; margin: 3px; padding: 8px 16px; width: 82px;
+      font-size: 20px; margin: 3px; padding: 4px 4px; width: 82px;
       border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;
       background-color: #f1f3f5; color: #495057;
       font-weight: 500; transition: all 0.2s ease;
@@ -22,38 +22,51 @@
 </head>
 <body>
   <div class="header-container">
-    <h1>방탈출</h1>
-    <div>
-      <button id="btn1" class="stage-button" onclick="selectStage(1)">1단계</button>
-      <button id="btn2" class="stage-button" onclick="selectStage(2)">2단계</button>
-      <button id="btn3" class="stage-button" onclick="selectStage(3)">3단계</button>
-      <button id="btn4" class="stage-button" onclick="selectStage(4)">4단계</button>
-      <button id="btn5" class="stage-button" onclick="selectStage(5)">5단계</button><br>
-      <button id="btn6" class="stage-button" onclick="selectStage(6)">6단계</button>
-      <button id="btn7" class="stage-button" onclick="selectStage(7)">7단계</button>
-      <button id="btn8" class="stage-button" onclick="selectStage(8)">8단계</button>
-      <button id="btn9" class="stage-button" onclick="selectStage(9)">9단계</button>
-      <button id="btn10" class="stage-button" onclick="selectStage(10)">10단계</button>
-    </div>
+    <h1>EscapeRoom</h1>
+    <div id="stage-buttons"></div>
   </div>
 
   <script>
     let currentStage = 1;
     const clearedStages = new Set();
-    const availablePuzzles = [1, 2, 3];
+    const availablePuzzles = [1,2,3,4,5,6,7,8,9,10];
+    const hintUsage = {}; // { stage번호: 힌트 사용 최대값 }
 
+    // 버튼 생성
+    function renderStageButtons() {
+      const container = document.getElementById("stage-buttons");
+      container.innerHTML = "";
+      availablePuzzles.forEach(stage => {
+        const btn = document.createElement("button");
+        btn.id = "btn" + stage;
+        btn.className = "stage-button";
+        btn.onclick = () => selectStage(stage);
+        container.appendChild(btn);
+        if (stage === 5) container.appendChild(document.createElement("br")); // 5단계 뒤 줄바꿈
+      });
+      updateButtons();
+    }
+
+    // 버튼 상태 및 텍스트 갱신
     function updateButtons() {
-      document.querySelectorAll('.stage-button').forEach(btn => {
-        const stageNum = parseInt(btn.id.replace('btn', ''), 10);
+      availablePuzzles.forEach(stageNum => {
+        const btn = document.getElementById("btn" + stageNum);
+        if (!btn) return;
+
         btn.classList.remove("active", "stage-success");
+
+        let label = stageNum + "단계";
+        if (hintUsage[stageNum]) {
+          label += `(${hintUsage[stageNum]})`;
+        }
+        btn.textContent = label;
 
         if (clearedStages.has(stageNum)) {
           btn.classList.add("stage-success");
         }
-        
         btn.disabled = !clearedStages.has(stageNum) && stageNum > clearedStages.size + 1;
       });
-      
+
       const currentBtn = document.getElementById("btn" + currentStage);
       if (currentBtn) {
         currentBtn.classList.remove("stage-success");
@@ -63,39 +76,68 @@
     }
 
     function selectStage(stage) {
-      // [수정] 사용 가능한 퍼즐이 아니면 함수 종료
       if (!availablePuzzles.includes(stage)) return;
 
-      // [수정] 이미 클리어한 스테이지를 선택한 경우
       if (clearedStages.has(stage)) {
-        // 해당 스테이지의 퍼즐만 불러오고, 버튼 색상이나 현재 스테이지 상태는 변경하지 않음
-        $("#puzzle").load(`puzzle-${stage}.html`);
+        // ✅ 마지막 단계(10단계)라면 success.html 로드
+        if (stage === 10) {
+          $("#puzzle").load("success.html");
+        } else {
+          $("#puzzle").load(`puzzle-${stage}.html`);
+        }
         return; 
       }
 
-      // 아직 클리어하지 않은 스테이지를 선택한 경우 (기존 로직)
       if (stage > clearedStages.size + 1) return;
       
       currentStage = stage;
       updateButtons();
-      $("#puzzle").load(`puzzle-${stage}.html`);
+
+      // ✅ 마지막 단계는 success.html 로드
+      if (stage === 10) {
+        $("#puzzle").load("success.html");
+      } else {
+        $("#puzzle").load(`puzzle-${stage}.html`);
+      }
     }
 
+    // "다음 단계" 버튼 클릭 시 동작 수정
+    $(document).on('selectStage', function(event, data) {
+      if (data?.stage === 10) {
+        // 9단계의 "다음 단계" 버튼에서 10을 요청하면 puzzle-10.html을 로드
+        $("#puzzle").load("puzzle-10.html");
+        return;
+      }
+      if (data?.stage === 11) {
+        // 10단계의 "다음 단계" 버튼에서 11을 요청하면 success.html을 로드
+        $("#puzzle").load("success.html");
+        return;
+      }
+      if (data?.stage) selectStage(data.stage);
+    });
+
+    // 이벤트 등록
     $(document).ready(function() {
       $(document).on('clearStage', function(event, data) {
-        if (data && data.stage) {
+        if (data?.stage) {
           clearedStages.add(data.stage);
           updateButtons();
         }
       });
 
-      $(document).on('selectStage', function(event, data) {
-        if (data && data.stage) {
-          selectStage(data.stage);
+      // selectStage 이벤트는 위에서 재정의됨
+
+      // [수정된 부분] 힌트 사용 이벤트 처리 → 최대값 유지
+      $(document).on('updateHint', function(event, data) {
+        if (data && data.stage && typeof data.count === "number") {
+          if (!hintUsage[data.stage] || data.count > hintUsage[data.stage]) {
+            hintUsage[data.stage] = data.count;
+            updateButtons();
+          }
         }
       });
 
-      updateButtons();
+      renderStageButtons();
     });
   </script>
 </body>

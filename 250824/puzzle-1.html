@@ -2,11 +2,11 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>일차방정식 1단계</title>
   <style>
     .quiz-container { text-align: center; }
+    .button { font-size: 15px; padding: 14px; border: none; border-radius: 8px; background: #339af0; color: #fff; cursor: pointer; }
     .quiz { font-size: 24px; margin: 20px 0; }
-    #answer { padding: 8px 12px; font-size: 18px; width: 220px; text-align: center; border: 1px solid #ced4da; border-radius: 6px; }
+    #answer { padding: 8px 12px; font-size: 18px; width: 100px; text-align: center; border: 1px solid #ced4da; border-radius: 6px; }
     #result { font-size: 20px; margin-top: 12px; font-weight: bold; height: 24px; }
     #next-stage-btn {
       font-size: 18px; margin-top: 10px; padding: 10px 20px; border: none;
@@ -14,69 +14,114 @@
       color: white; font-weight: bold; transition: background-color 0.2s;
     }
     #next-stage-btn:hover { background-color: #218838; }
+    .button:disabled, .button.disabled {
+      background: #adb5bd !important;
+      color: #f1f3f5 !important;
+      cursor: not-allowed !important;
+    }
   </style>
 </head>
 <body>
   <div class="quiz-container">
-    <h2>1단계: 일차방정식</h2>
-    <img src="p1.JPG" width="450px">
-    <div class="quiz">문제: <strong>2x = 2</strong></div>
-    <input type="number" id="answer" style="width: 100px; height: 30px;">
-    <button class="wide" onclick="checkAnswer()" style="font-size: 15px; padding: 14px; border: none; border-radius: 8px; background: #339af0; color: #fff;">확인</button>
+    <br>
+    <img src="p1.png" width="450px" alt="문제 이미지">
+    <br><br>
+    <input type="number" id="answer">
+    <button class="button" onclick="checkAnswer()">확인</button>
     
-    <p id="result"></p>
+    <p id="result"></p><br><br>
+
+    <button class="button" id="hint1-btn" onclick="toggleHint1()">힌트1</button>
+    <button class="button" id="hint2-btn" onclick="toggleHint2()" disabled>힌트2</button>
     
-    
+    <div id="hint1" class="quiz" style="display: none;">개수</div>
+    <div id="hint2" class="quiz" style="display: none;">동그라미 개수</div>
   </div>
 
   <script>
-    window.addEventListener("message", (event) => {
-      if (!event.data || !event.data.type) return;
-      const answerInput = document.getElementById("answer");
-      if (answerInput.disabled) return;
-
-      if (event.data.type === "answer") {
-        answerInput.value = event.data.value ?? "";
-      } else if (event.data.type === "submit") {
-        checkAnswer();
+    (function() {
+      const ThisStage = 1;
+      const correctAnswer = "2";
+    
+      window.checkAnswer = function() {
+        const answerInput = document.getElementById("answer");
+        const resultEl = document.getElementById("result");
+        const isCorrect = (answerInput.value.trim() === correctAnswer);
+    
+        if (isCorrect) {
+          resultEl.textContent = `정답 → ${correctAnswer}`;
+          resultEl.style.color = "green";
+          answerInput.disabled = true;
+    
+          $(document).trigger('clearStage', { stage: ThisStage });
+    
+          if (!document.getElementById("next-stage-btn")) {
+            const nextButton = document.createElement("button");
+            nextButton.id = "next-stage-btn";
+            nextButton.textContent = "다음 단계 →";
+            nextButton.onclick = advanceToNextStage;
+            resultEl.after(nextButton);
+          }
+        } else {
+          resultEl.textContent = "틀렸습니다. 다시 시도하세요.";
+          resultEl.style.color = "red";
+        }
+      };
+    
+      function advanceToNextStage() {
+        const nextStage = ThisStage + 1;
+        $(document).trigger('selectStage', { stage: nextStage });
       }
-    });
+    
+      document.getElementById("answer").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") window.checkAnswer();
+      });
+    
+      document.addEventListener("keydown", (e) => {
+        const answerInput = document.getElementById("answer");
+        if (answerInput.disabled && (e.code === "Space" || e.key === " ")) {
+          const nextBtn = document.getElementById("next-stage-btn");
+          if (nextBtn) {
+            e.preventDefault();
+            nextBtn.click();
+          }
+        }
+      });
+    
+      // 힌트 토글 함수
+      window.toggleHint1 = function() {
+        const hint1 = document.getElementById("hint1");
+        const hint2 = document.getElementById("hint2");
+        const hint2Btn = document.getElementById("hint2-btn");
+    
+        if (hint1.style.display === "none") {
+          hint1.style.display = "block";
+          hint2.style.display = "none";
+          hint2Btn.disabled = false;
+          hint2Btn.classList.remove("disabled");
 
-    function checkAnswer() {
-      const answerInput = document.getElementById("answer");
-      const resultEl = document.getElementById("result");
-      const isCorrect = (answerInput.value.trim() === "1");
-      
+          // 힌트1 사용 기록 (header에서 최대값 유지)
+          $(document).trigger('updateHint', { stage: ThisStage, count: 1 });
+        } else {
+          hint1.style.display = "none";
+        }
+      };
+    
+      window.toggleHint2 = function() {
+        const hint2 = document.getElementById("hint2");
+        const hint1 = document.getElementById("hint1");
+    
+        if (hint2.style.display === "none") {
+          hint2.style.display = "block";
+          hint1.style.display = "none";
 
-      if (isCorrect) {
-        resultEl.textContent = "정답! 1!";
-        resultEl.style.color = "green";
-        answerInput.disabled = true;
-
-        // [수정] "1단계를 클리어했다"는 신호를 문서 전체에 보냅니다.
-        $(document).trigger('clearStage', { stage: 1 });
-
-        const nextButton = document.createElement('button');
-        nextButton.id = 'next-stage-btn';
-        nextButton.textContent = '다음 단계 →';
-        nextButton.onclick = advanceToNextStage;
-        resultEl.after(nextButton);
-
-      } else {
-        resultEl.textContent = "틀렸습니다. 다시 시도하세요.";
-        resultEl.style.color = "red";
-      }
-    }
-
-    function advanceToNextStage() {
-      // [수정] "2단계를 선택하겠다"는 신호를 문서 전체에 보냅니다.
-      $(document).trigger('selectStage', { stage: 2 });
-    }
-
-    document.getElementById("answer").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") checkAnswer();
-    });
+          // 힌트2 사용 기록 (header에서 최대값 유지)
+          $(document).trigger('updateHint', { stage: ThisStage, count: 2 });
+        } else {
+          hint2.style.display = "none";
+        }
+      };
+    })();
   </script>
 </body>
-
 </html>
