@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>관리자 모드</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: linear-gradient(135deg, #e9f0f7, #ffffff);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+    .container {
+      background: #fff;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 320px;
+    }
+    h2 {
+      margin-bottom: 24px;
+      font-size: 22px;
+      color: #333;
+    }
+    form {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    input:focus {
+      border-color: #339af0;
+    }
+    button {
+      padding: 12px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: #339af0;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #1c7ed6;
+    }
+    #msg {
+      margin-top: 16px;
+      color: #d32f2f;
+      min-height: 1.2em;
+      font-size: 14px;
+      transition: opacity 0.5s;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>관리자 모드</h2>
+
+    <form id="pwForm" autocomplete="off">
+      <input
+        id="pw"
+        type="password"
+        placeholder="비밀번호 입력"
+        required
+        aria-label="비밀번호"
+        autofocus
+      />
+      <button type="submit">확인</button>
+    </form>
+
+    <div id="msg" role="alert" aria-live="polite"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('pwForm');
+    const pwInput = document.getElementById('pw');
+    const msg = document.getElementById('msg');
+    let msgTimeout;
+
+    // 페이지 로드 시 입력칸에 자동 포커스
+    window.addEventListener('DOMContentLoaded', () => {
+      pwInput.focus();
+    });
+
+    function showMessage(text) {
+      msg.textContent = text || '';
+      msg.style.opacity = '1';
+
+      if (msgTimeout) clearTimeout(msgTimeout);
+      if (text) {
+        msgTimeout = setTimeout(() => {
+          msg.style.opacity = '0';
+          setTimeout(() => (msg.textContent = ''), 500);
+        }, 3000);
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pw = pwInput.value.trim();
+
+      if (!pw) {
+        showMessage('비밀번호를 입력해 주세요.');
+        return;
+      }
+
+      const target = `${pw}.html`;
+
+      try {
+        let res = await fetch(target, { method: 'HEAD', cache: 'no-store' });
+        if (!res.ok) {
+          res = await fetch(target, { method: 'GET', cache: 'no-store' });
+        }
+
+        if (res.ok) {
+          location.href = target;
+        } else {
+          showMessage('해당 파일이 없습니다.');
+        }
+      } catch (err) {
+        showMessage('파일 확인이 제한된 환경입니다.');
+      }
+    });
+  </script>
+</body>
+</html>
