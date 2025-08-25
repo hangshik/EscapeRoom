@@ -85,7 +85,7 @@
         const totalWrong = Object.values(wrongAttempts).reduce((sum, count) => sum + count, 0);
         const displayEl = document.getElementById("total-wrong-attempts");
         if (totalWrong > 0) {
-            displayEl.textContent = `총 오답: ${totalWrong}`;
+            displayEl.textContent = `총 오답 횟수: ${totalWrong}`;
         } else {
             displayEl.textContent = "";
         }
@@ -164,4 +164,5 @@
     });
   </script>
 </body>
+
 </html>
