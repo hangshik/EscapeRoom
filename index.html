@@ -86,6 +86,11 @@
   </div>
 
   <script>
+    // 마우스 오른쪽 버튼 클릭 금지
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      });
+      
     const form = document.getElementById('pwForm');
     const pwInput = document.getElementById('pw');
     const msg = document.getElementById('msg');
