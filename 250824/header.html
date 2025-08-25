@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <style>
     .header-container { text-align: center; }
+    .stage-button-container { display: inline-block; } /* 컨테이너 추가 */
+    .wrong-attempts-container { display: inline-block; margin-left: 15px; font-size: 20px; font-weight: bold; color: #e03131; vertical-align: top; margin-top: 5px;} /* 오답 횟수 스타일 */
     .stage-button {
-      font-size: 20px; margin: 3px; padding: 4px 4px; width: 82px;
+      font-size: 20px; margin: 3px; padding: 4px 4px; width: 110px;
       border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;
       background-color: #f1f3f5; color: #495057;
       font-weight: 500; transition: all 0.2s ease;
@@ -23,7 +25,8 @@
 <body>
   <div class="header-container">
     <h1>EscapeRoom</h1>
-    <div id="stage-buttons"></div>
+    <div id="stage-buttons" class="stage-button-container"></div><br>
+    <div id="total-wrong-attempts" class="wrong-attempts-container"></div>
   </div>
 
   <script>
@@ -31,6 +34,7 @@
     const clearedStages = new Set();
     const availablePuzzles = [1,2,3,4,5,6,7,8,9,10];
     const hintUsage = {}; // { stage번호: 힌트 사용 최대값 }
+    const wrongAttempts = {}; // { stage번호: 오답 횟수 }
 
     // 버튼 생성
     function renderStageButtons() {
@@ -42,7 +46,7 @@
         btn.className = "stage-button";
         btn.onclick = () => selectStage(stage);
         container.appendChild(btn);
-        if (stage === 5) container.appendChild(document.createElement("br")); // 5단계 뒤 줄바꿈
+        if (stage % 4 === 0) container.appendChild(document.createElement("br"));
       });
       updateButtons();
     }
@@ -59,6 +63,7 @@
         if (hintUsage[stageNum]) {
           label += `(${hintUsage[stageNum]})`;
         }
+        // 개별 버튼의 오답 횟수 표시 제거
         btn.textContent = label;
 
         if (clearedStages.has(stageNum)) {
@@ -75,11 +80,21 @@
       }
     }
 
+    // 총 오답 횟수 갱신
+    function updateTotalWrongAttempts() {
+        const totalWrong = Object.values(wrongAttempts).reduce((sum, count) => sum + count, 0);
+        const displayEl = document.getElementById("total-wrong-attempts");
+        if (totalWrong > 0) {
+            displayEl.textContent = `총 오답: ${totalWrong}`;
+        } else {
+            displayEl.textContent = "";
+        }
+    }
+
     function selectStage(stage) {
       if (!availablePuzzles.includes(stage)) return;
 
       if (clearedStages.has(stage)) {
-        // ✅ 마지막 단계(10단계)라면 success.html 로드
         if (stage === 10) {
           $("#puzzle").load("success.html");
         } else {
@@ -93,27 +108,29 @@
       currentStage = stage;
       updateButtons();
 
-      // ✅ 마지막 단계는 success.html 로드
-      if (stage === 10) {
+      if (stage === 11) {
         $("#puzzle").load("success.html");
       } else {
         $("#puzzle").load(`puzzle-${stage}.html`);
       }
     }
 
-    // "다음 단계" 버튼 클릭 시 동작 수정
     $(document).on('selectStage', function(event, data) {
       if (data?.stage === 10) {
-        // 9단계의 "다음 단계" 버튼에서 10을 요청하면 puzzle-10.html을 로드
         $("#puzzle").load("puzzle-10.html");
+        currentStage = 10;
+        updateButtons();
         return;
       }
       if (data?.stage === 11) {
-        // 10단계의 "다음 단계" 버튼에서 11을 요청하면 success.html을 로드
         $("#puzzle").load("success.html");
+        currentStage = 11;
+        updateButtons();
         return;
       }
-      if (data?.stage) selectStage(data.stage);
+      if (data?.stage) {
+        selectStage(data.stage);
+      }
     });
 
     // 이벤트 등록
@@ -125,15 +142,21 @@
         }
       });
 
-      // selectStage 이벤트는 위에서 재정의됨
-
-      // [수정된 부분] 힌트 사용 이벤트 처리 → 최대값 유지
       $(document).on('updateHint', function(event, data) {
         if (data && data.stage && typeof data.count === "number") {
           if (!hintUsage[data.stage] || data.count > hintUsage[data.stage]) {
             hintUsage[data.stage] = data.count;
             updateButtons();
           }
+        }
+      });
+
+      // 오답 횟수 증가 이벤트
+      $(document).on('wrongAnswer', function(event, data) {
+        if (data && data.stage) {
+          wrongAttempts[data.stage] = (wrongAttempts[data.stage] || 0) + 1;
+          updateButtons(); // 버튼 상태는 계속 업데이트
+          updateTotalWrongAttempts(); // 총 오답 횟수 업데이트
         }
       });
 
