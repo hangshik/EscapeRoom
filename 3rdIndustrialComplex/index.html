@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>제 3 공업단지</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .controls, .stage-selection {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    #message-area {
+      margin: 15px 0;
+      font-weight: 600;
+      font-size: 20px;
+      color: #d9480f;
+      min-height: 24px;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      grid-template-rows: repeat(5, 60px);
+      gap: 5px;
+      border: 10px solid #8b8b8b;
+      border-radius: 8px;
+      padding: 10px;
+      background-color: #ced4da;
+    }
+    .grid-cell {
+      width: 60px;
+      height: 60px;
+      background-color: #f1f3f5;
+      border: 1px solid #adb5bd;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none; /* 텍스트 선택 방지 */
+      transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+    .grid-cell:active {
+        transform: scale(0.95);
+    }
+    .grid-cell.selected {
+      background-color: #ff6b6b; /* 빨간색 */
+      color: white;
+      border-color: #c92a2a;
+    }
+    /* 빈칸도 선택되면 빨간색으로 표시 */
+    .grid-cell.empty.selected {
+      background-color: #ff6b6b !important;
+      color: white !important;
+      border-color: #c92a2a !important;
+    }
+    .grid-cell.empty {
+      background-color: #e9ecef;
+      color: #adb5bd;
+      /* cursor: default;
+      pointer-events: none; */
+      /* 빈칸도 클릭 가능하도록 cursor/pointer-events 제거 */
+    }
+    .stage-button {
+      font-size: 16px;
+      margin: 4px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #e9ecef;
+      color: #495057;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .control-button {
+        font-size: 16px;
+        margin: 0 5px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        background-color: white;
+        cursor: pointer;
+    }
+     #check-answer-btn {
+        background-color: #339af0;
+        color: white;
+        font-weight: bold;
+        border: none;
+     }
+    .stage-button.active {
+      background-color: #339af0;
+      color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .stage-button.stage-success {
+      background-color: #40c057 !important;
+      color: white !important;
+    }
+    #stage-rule {
+      margin: 10px 0 20px 0;
+      font-size: 17px;
+      color: #495057;
+      min-height: 30px;
+      text-align: center;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 8px 12px;
+      border: 1px solid #dee2e6;
+      max-width: 400px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <h2>제 3 공업단지</h2>
+
+  <div class="stage-selection">
+    <button id="btn1" class="stage-button" onclick="setStage(1)">1단계</button>
+    <button id="btn2" class="stage-button" onclick="setStage(2)">2단계</button>
+    <button id="btn3" class="stage-button" onclick="setStage(3)">3단계</button><br>
+    <button id="btn4" class="stage-button" onclick="setStage(4)">4단계</button>
+    <button id="btn5" class="stage-button" onclick="setStage(5)">5단계</button>
+    <button id="btn6" class="stage-button" onclick="setStage(6)">6단계</button>
+  </div>
+
+  <div id="stage-rule"></div>
+
+  <div id="message-area">시간: <span id="timer">0.0</span>초</div>
+  <div class="grid-container" id="grid"></div>
+
+  <div class="controls">
+    <button class="control-button" onclick="undoMove()">되돌리기</button>
+    <button class="control-button" onclick="resetPuzzle()">처음으로</button>
+    <button class="control-button" id="check-answer-btn" onclick="checkAnswer()">정답 확인</button>
+  </div>
+  
+  <div>
+    [게임규칙]<br>
+    각 단계별로 아래에 별도의 규칙이 안내됩니다.<br>
+    각 단계의 규칙을 잘 읽고 문제를 풀어보세요!
+  </div>
+
+  <script>
+    const gridContainer = document.getElementById("grid");
+    const messageArea = document.getElementById("message-area");
+    const timerEl = document.getElementById("timer");
+    const stageRuleEl = document.getElementById("stage-rule");
+
+    let currentStage = 1;
+    let clearedStages = new Set();
+    let userClickSequence = []; // 사용자가 클릭한 순서 (인덱스 저장)
+    let wrongAttempts = 0;
+
+    // 전체 시간 측정용
+    let pageStartTime = new Date();
+    let totalElapsedTime = 0; // 누적 시간(초)
+    let stageStartTime = null; // 각 스테이지 시작 시간
+    let timerInterval;
+
+    // --- 각 단계별 데이터 (여기서 수정하세요) ---
+    // gridContent: 25개 배열, null 또는 "" 이면 빈칸(클릭 불가)
+    // rule: 각 단계별 규칙 설명(HTML 가능)
+    const gridStageData = {
+      1: {
+        gridContent: [
+          8, 9, 10, 12, 14,
+          25, 27, 15, 3, 16,
+          28, 21, 2, 22, 29,
+          30, 32, 5, 33, 6,
+          4, 34, 35, 7, 41
+        ],
+        correctSequence: [16,9,0,20,21,13,2,12,24,14,5,17], // 대각선
+        rule: "모든 숫자 중 3의 배수와 7의 배수를 제외한 숫자 중 높은 수부터 눌러야 합니다.<br>누르는 순서는 다음과 같습니다.<br>4의 배수 → 2의 배수 → 나머지 수"
+      },
+      2: {
+        gridContent: [
+          1, 5, 4, 3, 2,
+          3, null, null, null, 4,
+          5, null, null, null, 1,
+          2, null, null, null, 3,
+          4, 3, 2, 1, 5
+        ],
+        correctSequence: [3,4,19,22,21,15,5,6,13,12],
+        rule: "빈 버튼에 숨겨진 숫자는 다음과 같다.<br>그림의 가로, 세로, 대각선에 1부터 5까지 숫자가 한번씩 들어가도록 채운다.<br>빈칸 모두 채웠다면 맨 위줄 첫 번째칸에서부터, 시계방향으로 나선을 그리며 누르되 '2', '3'이 쓰인 버튼만 누른다."
+      },
+      3: {
+        gridContent: [
+          null, null, null, null, null,
+          null, null, null, null, null,
+          null, null, null, null, null,
+          null, null, null, null, null,
+          null, null, null, null, null
+        ],
+        correctSequence: [20, 15, 10, 5, 0, 6, 12,18,24,19,14,9,4], // 별만 순서대로
+        rule: "다음 단어들의 공통점을 찾아 그 모양에 맞게 버튼을 눌러야 한다.<br>버튼을 누르는 순서는 왼쪽 맨 아래 칸부터 한붓 그리기로 그려나간다.<br>단어: 11월, 북쪽, 공책, 이름, 다음, 이웃, 자연, 숫자, 밤, 9"
+      },
+      4: {
+        gridContent: [
+          "묵", "네", "찌", "꽃", "토",
+          "쁨", "립", "옹", "늘", "해",
+          "빛", "팡", "뜻", "힝", "카",
+          "롱", "감", "찬", "솥", "늬",
+          "빨", "큰", "쥬", "내", "예"
+        ],
+        correctSequence: [6,20,18,2,14],
+        rule: "다음 글자를 조합하면 다섯 글자로 이루어진 단어 5개를 만들 수 있지만, 각 단어에는 한 개의 글자가 누락되어 있다.<br>누락되어 있는 글자를 버튼에서 찾아 모두 눌러야 한다.<br>버튼을 누르는 순서는 '가나다' 순이다.<br><br>순 메 비 두 개 관 돌 대 리 부<br>조 건 독 빔 념 아 노 래 밤 기"
+      },
+      5: {
+        gridContent: [
+          "ㄴ", "ㅣ", "ㅕ", "ㅇ", "ㅔ",
+          "ㅏ", "ㄱ", "ㄴ", "ㄱ", "ㅇ",
+          "ㄹ", "ㄹ", "ㄸ", "ㅜ", "ㅇ",
+          "ㅑ", "ㅜ", "ㅐ", "ㄸ", "ㅏ",
+          "?", "ㄱ", "ㄴ", "ㅣ", "ㄴ"
+        ],
+        correctSequence: [14,19,24,23,18,17,22,21,16,11,12,13,8,9,4,3,2,7,6,1,0,5,10,15,20],
+        rule: "버튼의 자음과 모음을 모두 이용하여 하나의 문장을 만들 수 있다.<br>하나의 문장은 한붓그리기로 순서에 맞게 이어져 있다.<br>문장을 만들 수 있도록 가장 첫 문자부터 순서대로 버튼을 누른다."
+      },
+      6: {
+        gridContent: [
+          1, null, 2, null, 3,
+          null, "", null, "", null,
+          4, null, 5, null, 6,
+          null, "", null, "", null,
+          7, null, 8, null, 9
+        ],
+        correctSequence: [0, 2, 4, 10, 12, 14, 20, 22, 24], // 숫자만
+        rule: "문제 준비중"
+      }
+    };
+    // -----------------------------------------
+
+    // 전체 타이머(페이지 로딩부터) 갱신
+    function updateTimer() {
+      const now = new Date();
+      const elapsedTime = ((now - pageStartTime) / 1000).toFixed(1);
+      timerEl.innerText = elapsedTime;
+    }
+
+    // 각 스테이지 시작 시점에 누적 시간 기록
+    function setStage(stage) {
+      currentStage = stage;
+      // 버튼 활성/성공 상태 업데이트
+      document.querySelectorAll('.stage-button').forEach(btn => {
+        btn.classList.remove("active");
+        if (clearedStages.has(Number(btn.id.replace('btn','')))) {
+            btn.classList.add("stage-success");
+        }
+      });
+      document.getElementById("btn" + stage).classList.add("active");
+
+      initializeGrid();
+    }
+
+    function initializeGrid() {
+      gridContainer.innerHTML = "";
+      userClickSequence = [];
+      wrongAttempts = 0;
+      messageArea.innerHTML = '시간: <span id="timer">0.0</span>초';
+
+      // 규칙 안내
+      stageRuleEl.innerHTML = gridStageData[currentStage].rule || "";
+
+      // 스테이지 시작 시간 기록
+      stageStartTime = new Date();
+
+      // 타이머 인터벌이 이미 있으면 제거
+      if(timerInterval) clearInterval(timerInterval);
+      // 페이지 전체 타이머(로딩부터) 갱신
+      timerInterval = setInterval(updateTimer, 100);
+
+      // 타이머 바로 갱신
+      updateTimer();
+
+      const stageConfig = gridStageData[currentStage];
+      stageConfig.gridContent.forEach((content, index) => {
+        const cell = document.createElement("div");
+        cell.className = "grid-cell";
+        cell.dataset.index = index;
+
+        // 빈칸 처리 (null, undefined, "" 모두 빈칸)
+        if (content === null || content === undefined || content === "") {
+          cell.classList.add("empty");
+          cell.textContent = "";
+          // 빈칸도 클릭 가능하도록 이벤트 추가
+          cell.addEventListener("click", handleCellClick);
+        } else {
+          cell.textContent = content;
+          cell.addEventListener("click", handleCellClick);
+        }
+        gridContainer.appendChild(cell);
+      });
+    }
+
+    function handleCellClick(event) {
+      const cell = event.currentTarget;
+      const index = parseInt(cell.dataset.index);
+
+      // 이미 선택된 셀은 다시 클릭할 수 없음
+      if (cell.classList.contains("selected")) return;
+
+      cell.classList.add("selected");
+      userClickSequence.push(index);
+    }
+    
+    function checkAnswer() {
+      const correct = gridStageData[currentStage].correctSequence;
+      // 배열 비교 (길이와 내용, 순서가 모두 같아야 함)
+      const isCorrect = userClickSequence.length === correct.length && 
+                        userClickSequence.every((val, index) => val === correct[index]);
+
+      // 현재까지의 총 경과 시간(초)
+      const now = new Date();
+      let elapsed = ((now - pageStartTime) / 1000);
+      // 소수점 1자리로
+      elapsed = Math.round(elapsed * 10) / 10;
+
+      if (isCorrect) {
+        clearInterval(timerInterval);
+        // 정답까지의 총 시간(오답 포함)
+        messageArea.innerText = `✅ 정답입니다! 총 소요 시간: ${elapsed}초`;
+        clearedStages.add(currentStage);
+        document.getElementById("btn" + currentStage).classList.add("stage-success");
+      } else {
+        wrongAttempts++;
+        messageArea.innerText = `❌ ${wrongAttempts}번째 틀렸습니다. (현재까지 총 ${elapsed}초 경과)`;
+      }
+    }
+
+    function undoMove() {
+      if (userClickSequence.length === 0) return;
+      
+      const lastIndex = userClickSequence.pop();
+      const cell = gridContainer.querySelector(`[data-index='${lastIndex}']`);
+      if (cell) {
+        cell.classList.remove("selected");
+      }
+      // 되돌리기 시 메시지 초기화(시간은 유지)
+      const now = new Date();
+      let elapsed = ((now - pageStartTime) / 1000);
+      elapsed = Math.round(elapsed * 10) / 10;
+      messageArea.innerHTML = `시간: <span id="timer">${elapsed}</span>초`;
+    }
+
+    function resetPuzzle() {
+      initializeGrid();
+    }
+
+    // 페이지 로드 시 1단계 자동 설정 및 전체 타이머 시작
+    window.onload = () => {
+      pageStartTime = new Date();
+      setStage(1);
+      if(timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(updateTimer, 100);
+      updateTimer();
+    };
+  </script>
+</body>
+</html>
