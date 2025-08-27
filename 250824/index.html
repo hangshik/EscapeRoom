@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>EscapeRoom-250824</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+      /* --- Global & Header Styles --- */
+      body { font-family: sans-serif; }
+      .header-container { text-align: center; }
+      .stage-button-container { display: inline-block; }
+      .wrong-attempts-container { display: inline-block; margin-left: 15px; font-size: 20px; font-weight: bold; color: #e03131; vertical-align: top; margin-top: 5px;}
+      .stage-button {
+        font-size: 20px; margin: 3px; padding: 4px 4px; width: 110px;
+        border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;
+        background-color: #f1f3f5; color: #495057;
+        font-weight: 500; transition: all 0.2s ease;
+      }
+      .stage-button:disabled { cursor: not-allowed; opacity: 0.6; }
+      .stage-button:not(:disabled):hover { border-color: #868e96; }
+      .active {
+        background-color: #339af0; color: white; border-color: #339af0;
+      }
+      .stage-success {
+        background-color: #28a745; color: white; border-color: #28a745;
+      }
+
+      /* --- Puzzle Styles --- */
+      .quiz-container { text-align: center; }
+      .button { font-size: 15px; margin: 0 5px; padding: 14px; border: none; border-radius: 8px; background: #339af0; color: #fff; cursor: pointer; }
+      .quiz { font-size: 24px; margin: 20px 0; }
+      #answer { padding: 8px 12px; font-size: 18px; width: 120px; text-align: center; border: 1px solid #ced4da; border-radius: 6px; }
+      #result { font-size: 20px; margin-top: 12px; font-weight: bold; height: 24px; }
+      #next-stage-btn {
+        font-size: 18px; margin-top: 10px; padding: 10px 20px; border: none;
+        border-radius: 8px; cursor: pointer; background-color: #28a745;
+        color: white; font-weight: bold; transition: background-color 0.2s;
+      }
+      #next-stage-btn:hover { background-color: #218838; }
+      .button:disabled, .button.disabled {
+        background: #adb5bd !important;
+        color: #f1f3f5 !important;
+        cursor: not-allowed !important;
+      }
+    </style>
+</head>
+<body>
+    <div id="header"></div>
+    <div id="puzzle"></div>
+
+    <script>
+      // 마우스 오른쪽 버튼 클릭 방지
+      document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+      });
+
+      // --- 모든 퍼즐 데이터 ---
+      const puzzleData = [
+        { stage: 1, image: "p1.png", answer: "2", inputType: "number", hints: [{type: 'text', content: '개수'}, {type: 'text', content: '동그라미 개수'}] },
+        { stage: 2, image: "p2.png", answer: ["228", "229"], inputType: "number", hints: [{type: 'text', content: '달력'}, {type: 'text', content: '2월은?'}] },
+        { stage: 3, image: "p3.png", answer: "85", inputType: "number", hints: [{type: 'text', content: '제곱'}, {type: 'text', content: '더하기'}] },
+        { stage: 4, image: "p4.png", answer: "18", inputType: "number", hints: [{type: 'text', content: '제곱'}, {type: 'text', content: '거꾸로'}] },
+        { stage: 5, image: "p5.png", answer: "42857", inputType: "number", hints: [{type: 'text', content: 'E=7'}, {type: 'text', content: 'A=4'}] },
+        { stage: 6, image: "p6.png", answer: "5104", inputType: "number", hints: [{type: 'image', content: 'h6.png'}, {type: 'text', content: '소수만읽어라'}] },
+        { stage: 7, image: "p7.png", answer: "매듭", inputType: "text", hints: [{type: 'text', content: '2글자 한글 단어입니다.'}, {type: 'text', content: '빨간색과 파란색을 더하면 보라색이 됩니다.'}] },
+        { stage: 8, image: "p8.png", answer: "8", inputType: "number", hints: [{type: 'image', content: 'h8.png'}] },
+        { stage: 9, image: "p9.png", answer: "39", inputType: "number", hints: [{type: 'text', content: '46을 구할 때 3이 2번 사용됩니다.'}, {type: 'text', content: '3x12=36입니다.'}] },
+        { stage: 10, image: "p10.png", answer: "10000", inputType: "number", hints: [{type: 'text', content: '1은 -(빼기)를 의미합니다.'}, {type: 'text', content: '10은 +(더하기)를 의미합니다.'}, {type: 'text', content: '문제의 숫자를 한글로 적어보세요.'}] }
+      ];
+
+      // --- 전역 게임 상태 및 헤더 로직 ---
+      let currentStage = 1;
+      const clearedStages = new Set();
+      const availablePuzzles = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const hintUsage = {};
+      const wrongAttempts = {};
+
+      function renderHeader() {
+        const headerContainer = document.getElementById("header");
+        headerContainer.innerHTML = `
+          <div class="header-container">
+            <h1>EscapeRoom - 250824</h1>
+            <div id="stage-buttons" class="stage-button-container"></div><br>
+            <div id="total-wrong-attempts" class="wrong-attempts-container"></div>
+          </div>
+        `;
+        renderStageButtons();
+      }
+
+      function renderStageButtons() {
+        const container = document.getElementById("stage-buttons");
+        if (!container) return;
+        container.innerHTML = "";
+        availablePuzzles.forEach(stage => {
+          const btn = document.createElement("button");
+          btn.id = "btn" + stage;
+          btn.className = "stage-button";
+          btn.onclick = () => selectStage(stage);
+          container.appendChild(btn);
+          if (stage % 4 === 0) container.appendChild(document.createElement("br"));
+        });
+        updateButtons();
+      }
+
+      function updateButtons() {
+        availablePuzzles.forEach(stageNum => {
+          const btn = document.getElementById("btn" + stageNum);
+          if (!btn) return;
+
+          btn.classList.remove("active", "stage-success");
+          let label = stageNum + "단계";
+          if (hintUsage[stageNum]) {
+            label += `(${hintUsage[stageNum]})`;
+          }
+          btn.textContent = label;
+
+          if (clearedStages.has(stageNum)) {
+            btn.classList.add("stage-success");
+          }
+          
+          btn.disabled = false;
+        });
+
+        const currentBtn = document.getElementById("btn" + currentStage);
+        if (currentBtn) {
+            if (!clearedStages.has(currentStage)) {
+               currentBtn.classList.add("active");
+            }
+        }
+      }
+
+      function updateTotalWrongAttempts() {
+        const totalWrong = Object.values(wrongAttempts).reduce((sum, count) => sum + count, 0);
+        const displayEl = document.getElementById("total-wrong-attempts");
+        if (displayEl) {
+            displayEl.textContent = totalWrong > 0 ? `총 오답 횟수: ${totalWrong}` : "";
+        }
+      }
+
+      // --- 퍼즐 로딩 및 상호작용 로직 ---
+      function loadPuzzle(stage) {
+        const puzzleContainer = document.getElementById("puzzle");
+
+        // 성공 화면 로드
+        if (stage > puzzleData.length) {
+            puzzleContainer.innerHTML = `
+                <div class="quiz-container">
+                    <br>
+                    <img src="success.png" width="450px" alt="성공 이미지">
+                </div>
+            `;
+            return;
+        }
+
+        const puzzle = puzzleData.find(p => p.stage === stage);
+        if (!puzzle) {
+            puzzleContainer.innerHTML = `<div class="quiz-container"><h2>${stage}단계 퍼즐을 찾을 수 없습니다.</h2></div>`;
+            return;
+        }
+        
+        let hintButtonsHTML = '';
+        let hintDivsHTML = '';
+        if (puzzle.hints && puzzle.hints.length > 0) {
+            puzzle.hints.forEach((hint, index) => {
+                const hintNum = index + 1;
+                const isDisabled = hintNum > 1 ? 'disabled' : '';
+                hintButtonsHTML += `<button class="button" id="hint${hintNum}-btn" onclick="toggleHint(${hintNum})" ${isDisabled}>힌트${hintNum}</button> `;
+                
+                const content = hint.type === 'text'
+                    ? hint.content
+                    : `<img src="${hint.content}" width="450px">`;
+                hintDivsHTML += `<div id="hint${hintNum}" class="quiz" style="display: none;">${content}</div>`;
+            });
+        }
+        
+        puzzleContainer.innerHTML = `
+          <div class="quiz-container">
+            <br>
+            <img src="${puzzle.image}" width="450px" alt="문제 이미지 ${puzzle.stage}">
+            <br><br>
+            <input type="${puzzle.inputType}" id="answer" autocomplete="off">
+            <button class="button" onclick="checkAnswer()">확인</button>
+            <p id="result"></p><br><br>
+            ${hintButtonsHTML}
+            ${hintDivsHTML}
+          </div>
+        `;
+        
+        document.getElementById("answer").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") checkAnswer();
+        });
+
+        // ✅ 입력 칸에 자동으로 커서 이동
+        setTimeout(() => {
+            const answerInput = document.getElementById("answer");
+            if (answerInput) answerInput.focus();
+        }, 0);
+      }
+
+      function advanceToNextStage() {
+        const unclearedStages = availablePuzzles.filter(stage => !clearedStages.has(stage));
+        if (unclearedStages.length > 0) {
+            const nextStageToGo = Math.min(...unclearedStages);
+            selectStage(nextStageToGo);
+        } else {
+            selectStage(puzzleData.length + 1);
+        }
+      }
+
+      function checkAnswer() {
+        const answerInput = document.getElementById("answer");
+        const resultEl = document.getElementById("result");
+        const puzzle = puzzleData.find(p => p.stage === currentStage);
+        if (!puzzle) return;
+
+        const userAnswer = answerInput.value.trim();
+        const isCorrect = Array.isArray(puzzle.answer)
+          ? puzzle.answer.includes(userAnswer)
+          : userAnswer === puzzle.answer;
+
+        if (isCorrect) {
+          resultEl.textContent = `정답 → ${userAnswer}`;
+          resultEl.style.color = "green";
+          answerInput.disabled = true;
+          $(document).trigger('clearStage', { stage: currentStage });
+
+          if (!document.getElementById("next-stage-btn")) {
+            const nextButton = document.createElement("button");
+            nextButton.id = "next-stage-btn";
+            nextButton.textContent = "다음 단계 →";
+            nextButton.onclick = advanceToNextStage; 
+            resultEl.after(nextButton);
+          }
+        } else {
+          resultEl.textContent = "틀렸습니다. 다시 시도하세요.";
+          resultEl.style.color = "red";
+          $(document).trigger('wrongAnswer', { stage: currentStage });
+          setTimeout(() => { resultEl.textContent = ""; }, 2000);
+        }
+      }
+
+      function toggleHint(hintNumber) {
+        const puzzle = puzzleData.find(p => p.stage === currentStage);
+        if (!puzzle || !puzzle.hints) return;
+
+        const targetHintEl = document.getElementById(`hint${hintNumber}`);
+        if (!targetHintEl) return;
+        
+        const isHidden = targetHintEl.style.display === "none";
+
+        for (let i = 1; i <= puzzle.hints.length; i++) {
+            const hintEl = document.getElementById(`hint${i}`);
+            if(hintEl) hintEl.style.display = "none";
+        }
+
+        if (isHidden) {
+            targetHintEl.style.display = "block";
+            $(document).trigger('updateHint', { stage: currentStage, count: hintNumber });
+            
+            const nextHintBtn = document.getElementById(`hint${hintNumber + 1}-btn`);
+            if (nextHintBtn) {
+                nextHintBtn.disabled = false;
+                nextHintBtn.classList.remove("disabled");
+            }
+        }
+      }
+      
+      function selectStage(stage) {
+          currentStage = stage;
+          loadPuzzle(stage);
+          updateButtons();
+      }
+
+      // --- 이벤트 리스너 및 초기화 ---
+      $(document).ready(function() {
+        $(document).on('clearStage', (event, data) => {
+          if (data?.stage) {
+            clearedStages.add(data.stage);
+            updateButtons();
+          }
+        });
+
+        $(document).on('updateHint', (event, data) => {
+          if (data && data.stage && typeof data.count === "number") {
+            if (!hintUsage[data.stage] || data.count > hintUsage[data.stage]) {
+              hintUsage[data.stage] = data.count;
+              updateButtons();
+            }
+          }
+        });
+
+        $(document).on('wrongAnswer', (event, data) => {
+          if (data && data.stage) {
+            wrongAttempts[data.stage] = (wrongAttempts[data.stage] || 0) + 1;
+            updateTotalWrongAttempts();
+          }
+        });
+        
+        $(document).on('selectStage', (event, data) => {
+            if (data?.stage) {
+                selectStage(data.stage);
+            }
+        });
+
+        document.addEventListener("keydown", (e) => {
+            const answerInput = document.getElementById("answer");
+            if (answerInput && answerInput.disabled && (e.code === "Space" || e.key === " ")) {
+                const nextBtn = document.getElementById("next-stage-btn");
+                if (nextBtn) {
+                    e.preventDefault();
+                    nextBtn.click();
+                }
+            }
+        });
+
+        renderHeader();
+        selectStage(1);
+      });
+    </script>
+</body>
+</html>
