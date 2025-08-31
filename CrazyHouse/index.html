@@ -32,16 +32,21 @@
 </head>
 <body>
     <div id="header"></div>
-    <div id="puzzle"></div>
+    <div id="puzzle"></div><br>
+    <div style="text-align:center;">
+      ◈ 키보드<br>
+      확인: Enter<br>
+      다음 단계: Space
+    </div>
 
     <script>
       document.addEventListener('contextmenu', e => e.preventDefault());
 
       const puzzleData = [
-        { stage: 1, image: "p1.png", text: "차가 주치된 곳에 가려진 숫자는?", answer: "61", inputType: "number", hints: [] },
-        { stage: 2, image: "p2.png", text: "숫자를 입력하세요.", answer: "6906", inputType: "number", hints: [] },
+        { stage: 1, image: "p1.png", text: "차가 주치된 곳에 가려진 숫자는?", answer: "61", inputType: "number", hints: [{type: 'text', content: '거꾸로'}] },
+        { stage: 2, image: "p2.png", text: "숫자를 입력하세요.", answer: "6906", inputType: "number", hints: [{type: 'text', content: '시계'}] },
         { stage: 3, image: "p4.png", text: "숫자를 입력하세요.",  answer: ["5119658", "5773652"], inputType: "number", hints: [{type: 'text', content: '키패드'}] },
-        { stage: 4, image: "p3.png", text: "숫자를 입력하세요.", answer: "2056", inputType: "number", hints: [{type: 'text', content: '디지털 숫자'}] },
+        { stage: 4, image: "p3.png", text: "숫자를 입력하세요.", answer: "2056", inputType: "number", hints: [{type: 'text', content: '디지털 숫자'},{type: 'text', content: '순서'}] },
         { stage: 5, image: "p5.png", text: "벽에 걸려있는 시계는 고장이 나 멈춰있다. 숫자가 적혀 있지 않고, 똑바로 걸려 있는 것이 아니다. 시침과 분침 사이의 각도는 105도일 때 시계는 현재 몇 시 몇 분에 멈춰있는 것인지 쓰시오.(세자리 숫자를 입력하세요.)", answer: ["230","930"], inputType: "number", hints: [{type: 'text', content: '시계 전체는 360도, 각 숫자 사이의 각도는 30도'}] },
         { stage: 6, image: "p6.png", text: "숫자를 입력하세요.", answer: "2118", inputType: "number", hints: [{type: 'text', content: '영어'}, {type: 'text', content: '대칭'}] },
         { stage: 7, image: "p7.png", text: "정답을 입력하시오.", answer: ["ESCAPE","Escape","escape"], inputType: "text", hints: [{type: 'text', content: '다른 눈높이'},{type: 'text', content: '영어'}] }
@@ -116,7 +121,7 @@
         // text 먼저, image 나중
         let contentHTML = '';
         if (puzzle.text) contentHTML += `<div class="quiz">${puzzle.text}</div><br>`;
-        if (puzzle.image) contentHTML += `<img src="${puzzle.image}" width="450px"><br><br>`;
+        if (puzzle.image) contentHTML += `<img src="${puzzle.image}" width="450px"><br>`;
 
         let hintButtonsHTML = '';
         let hintDivsHTML = '';
