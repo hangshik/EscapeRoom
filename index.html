@@ -7,8 +7,8 @@
   <style>
     body {
       font-family: 'Noto Sans KR', sans-serif;
-      background: linear-gradient(135deg, #e9f0f7, #ffffff);
-      height: 100vh;
+      background: #e9f0f7;
+      height: 50vh;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -68,7 +68,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>관리자 모드</h2>
+    <h2>비밀번호를 입력하세요.</h2>
 
     <form id="pwForm" autocomplete="off">
       <input
@@ -134,7 +134,7 @@
         if (res.ok) {
           location.href = target;
         } else {
-          showMessage('해당 파일이 없습니다.');
+          showMessage('비밀번호가 틀렸습니다.');
         }
       } catch (err) {
         showMessage('파일 확인이 제한된 환경입니다.');
