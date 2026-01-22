@@ -223,6 +223,7 @@ const puzzleData = [
 
 let currentStage = 1;
 let totalWrongCount = 0;
+let imageZoomOverlay = null;
 const clearedStages = new Set();
 const hintUsage = {};
 const stageState = {};
@@ -350,12 +351,39 @@ function showFinalSuccess() {
 }
 
 function toggleImageZoom(src) {
-  const o = $(`<div style="position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:20000;display:flex;justify-content:center;align-items:center;cursor:zoom-out;padding:10px;">
-    <img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;">
-  </div>`);
-  o.click(function(){ $(this).remove(); });
-  $("body").append(o);
+  // 이미 열려 있으면 제거
+  if (imageZoomOverlay) {
+    imageZoomOverlay.remove();
+    imageZoomOverlay = null;
+  }
+
+  imageZoomOverlay = $(`
+    <div id="image-zoom-overlay"
+         style="position:fixed;inset:0;background:rgba(0,0,0,0.95);
+         z-index:20000;display:flex;justify-content:center;
+         align-items:center;cursor:zoom-out;padding:10px;">
+      <img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;">
+    </div>
+  `);
+
+  // 클릭 시 닫기
+  imageZoomOverlay.on("click", closeImageZoom);
+
+  $("body").append(imageZoomOverlay);
 }
+
+function closeImageZoom() {
+  if (imageZoomOverlay) {
+    imageZoomOverlay.remove();
+    imageZoomOverlay = null;
+  }
+}
+
+$(document).on("keydown", function (e) {
+  if (e.key === "Escape") {
+    closeImageZoom();
+  }
+});
 
 function toggleHint(n) {
   hintUsage[currentStage] = Math.max(hintUsage[currentStage] || 0, n);
