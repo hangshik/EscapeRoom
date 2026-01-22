@@ -260,7 +260,8 @@ function loadPuzzle(stage) {
     const enabled = i === 0 || (hintUsage[stage] || 0) >= i;
     hintBtns += `<button class="btn-hint ${enabled ? "enabled" : ""}" ${enabled ? "" : "disabled"} onclick="toggleHint(${i + 1})">힌트 ${i + 1}</button>`;
     if (used) {
-      const content = h.type === "text" ? h.content : `<img src="${h.content}" class="quiz-image" style="min-height:auto; margin-top:10px;">`;
+      const content = h.type === "text" ? h.content : `<img src="${h.content}" class="quiz-image" style="min-height:auto; margin-top:10px;"
+             onclick="toggleImageZoom(this.src)">`;
       hintDivs += `<div class="hint-content">${content}</div>`;
     }
   });
