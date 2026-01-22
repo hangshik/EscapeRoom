@@ -197,8 +197,8 @@ h1 {
   <h1>EscapeRoom - 250824</h1>
   <div id="stage-buttons" class="stage-button-container"></div>
   <div class="status-bar">
-    <div id="hint-count-badge" class="badge hint-badge">힌트: <span id="total-hint-count">0</span></div>
-    <div class="badge wrong-badge">오답: <span id="wrong-count">0</span></div>
+    <div id="hint-count-badge" class="badge hint-badge">힌트 횟수: <span id="total-hint-count">0</span></div>
+    <div class="badge wrong-badge">오답 횟수: <span id="wrong-count">0</span></div>
   </div>
 </div>
 
@@ -242,7 +242,7 @@ function renderStageButtons() {
   const c = $("#stage-buttons").empty();
   puzzleData.forEach(p => {
     const h = hintUsage[p.stage] || 0;
-    const label = h > 0 ? `${p.stage}(${h})` : `${p.stage}단계`;
+    const label = h > 0 ? `${p.stage}단계(${h})` : `${p.stage}단계`;
     let cls = "stage-button";
     if (p.stage === currentStage) cls += " active";
     else if (clearedStages.has(p.stage)) cls += " stage-success";
