@@ -1,211 +1,409 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8" />
-    <title>CrazyHouse</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <style>
-      body { font-family: sans-serif; }
-      .header-container { text-align: center; }
-      .stage-button-container { display: inline-block; }
-      .wrong-attempts-container { display: inline-block; margin-left: 15px; font-size: 20px; font-weight: bold; color: #e03131; vertical-align: top; margin-top: 5px;}
-      .stage-button {
-        font-size: 20px; margin: 5px 3px; padding: 4px 4px; width: 110px;
-        border: 1px solid #ced4da; border-radius: 8px; cursor: pointer;
-        background-color: #f1f3f5; color: #495057;
-        font-weight: 500; transition: all 0.2s ease;
-      }
-      .stage-button:disabled { cursor: not-allowed; opacity: 0.6; }
-      .stage-button:not(:disabled):hover { border-color: #868e96; }
-      .active { background-color: #339af0; color: white; border-color: #339af0; }
-      .stage-success { background-color: #28a745; color: white; border-color: #28a745; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CrazyHouse</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 
-      .quiz-container { text-align: center; }
-      .button { font-size: 15px; margin: 0 5px; padding: 14px; border: none; border-radius: 8px; background: #339af0; color: #fff; cursor: pointer; }
-      .quiz { font-size: 24px; margin: 20px 0; }
-      #answer { padding: 8px 12px; font-size: 18px; width: 120px; text-align: center; border: 1px solid #ced4da; border-radius: 6px; }
-      #result { font-size: 20px; margin-top: 12px; font-weight: bold; height: 24px; }
-      #next-stage-btn { font-size: 18px; margin-top: 10px; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; background-color: #28a745; color: white; font-weight: bold; transition: background-color 0.2s; }
-      #next-stage-btn:hover { background-color: #218838; }
-      .button:disabled, .button.disabled { background: #adb5bd !important; color: #f1f3f5 !important; cursor: not-allowed !important; }
-    </style>
+<style>
+:root {
+  --active: #007bff;
+  --success: #28a745;
+  --danger: #dc3545;
+  --hint: #17a2b8;
+  --bg: #f0f2f5;
+  --card-bg: #ffffff;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  margin: 0;
+  padding: 15px 10px; /* 모바일 여백 축소 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+}
+
+/* 메인 컨테이너 반응형 설정 */
+.container-fixed {
+  width: 100%;
+  max-width: 800px;
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 20px; /* 모바일 패딩 축소 */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+
+h1 { 
+  margin: 0 0 20px; 
+  font-size: clamp(20px, 5vw, 32px); /* 반응형 폰트 */
+  text-align: center; 
+  font-weight: 800; 
+}
+
+.quiz-question {
+  font-size: clamp(18px, 4vw, 28px);
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 15px;
+  color: #444;
+  word-break: keep-all; /* 한글 줄바꿈 최적화 */
+}
+
+/* 단계 버튼 그리드 모바일 최적화 */
+.stage-button-container {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px; /* 간격 축소 */
+  width: 100%;
+}
+
+.stage-button {
+  width: 100%;
+  padding: 12px 2px; /* 터치 영역 확보 */
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  background: #f8f9fa;
+  font-size: clamp(12px, 2.5vw, 18px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stage-button.active { background: var(--active); color: #fff; border-color: var(--active); }
+.stage-button.stage-success { background: var(--success); color: #fff; border-color: var(--success); }
+
+.status-bar { 
+  display: flex; 
+  justify-content: flex-end; 
+  margin-top: 15px; 
+  gap: 8px; 
+  flex-wrap: wrap; /* 배지가 넘칠 경우 줄바꿈 */
+}
+
+.badge { 
+  padding: 6px 12px; 
+  border-radius: 20px; 
+  font-size: clamp(12px, 3vw, 16px); 
+  font-weight: 700; 
+  border: 1px solid; 
+}
+.wrong-badge { background: #fff5f5; color: var(--danger); border-color: #ffe3e3; }
+.hint-badge { background: #e7faff; color: var(--hint); border-color: #bee5eb; display: none; }
+
+.quiz-image { 
+  width: 100%; 
+  max-height: 50vh; /* 모바일에서 이미지가 너무 길어지지 않게 방지 */
+  border-radius: 12px; 
+  display: block; 
+  margin: 0 auto; 
+  cursor: pointer;
+  background: #eee;
+  object-fit: contain;
+}
+
+/* 입력 영역 모바일 배치 */
+.input-group { 
+  margin: 20px 0; 
+  display: flex; 
+  justify-content: center; 
+  gap: 10px; 
+}
+#answer { 
+  flex: 1; 
+  max-width: 180px; 
+  font-size: 18px; /* 모바일 입력창 확대 방지 최소 16px 이상 */
+  padding: 12px; 
+  border-radius: 12px; 
+  border: 2px solid #dee2e6; 
+  text-align: center; 
+  appearance: none; /* iOS 기본 스타일 제거 */
+}
+
+.btn-submit {
+  padding: 12px 24px; 
+  border-radius: 12px; 
+  background: var(--active);
+  color: #fff; 
+  border: none; 
+  font-size: 18px; 
+  font-weight: 700; 
+  cursor: pointer;
+}
+
+.btn-hint {
+  padding: 10px 15px; 
+  border-radius: 8px; 
+  border: 1.5px solid #dee2e6;
+  background: #fff; 
+  font-size: 14px; 
+  margin: 3px; 
+  cursor: pointer;
+}
+.btn-hint.enabled { background: #e7f1ff; border-color: var(--active); color: var(--active); font-weight: bold; }
+
+.hint-content {
+  background: #f8f9fa; 
+  padding: 15px; 
+  border-radius: 12px;
+  margin-top: 15px; 
+  font-size: 16px; 
+  border-left: 4px solid var(--active);
+  line-height: 1.5;
+}
+
+/* 모달 및 팝업 최적화 */
+.success-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 10000;
+  padding: 20px;
+}
+.success-modal { 
+  background: #fff; 
+  padding: 30px; 
+  border-radius: 20px; 
+  text-align: center; 
+  width: 100%; 
+  max-width: 350px; 
+}
+
+#final-success {
+  position: fixed; inset: 0; background: #fff; z-index: 11000;
+  display: flex; justify-content: center; align-items: center; cursor: pointer;
+}
+#final-success img { width: 100%; height: 100%; object-fit: contain; }
+
+/* 큰 화면(데스크탑) 대응 */
+@media (min-width: 800px) {
+  .container-fixed { padding: 35px; }
+  .stage-button { padding: 18px 5px; font-size: 18px; }
+  #answer { font-size: 24px; max-width: 250px; }
+  .btn-submit { font-size: 22px; }
+}
+</style>
 </head>
 <body>
-    <div id="header"></div>
-    <div id="puzzle"></div><br>
-    <div style="text-align:center;">
-      ◈ 키보드<br>
-      확인: Enter<br>
-      다음 단계: Space
+
+<div class="container-fixed">
+  <h1>CrazyHouse</h1>
+  <div id="stage-buttons" class="stage-button-container"></div>
+  <div class="status-bar">
+    <div id="hint-count-badge" class="badge hint-badge">힌트 횟수: <span id="total-hint-count">0</span></div>
+    <div class="badge wrong-badge">오답 횟수: <span id="wrong-count">0</span></div>
+  </div>
+</div>
+
+<div id="puzzle" class="container-fixed"></div>
+
+<script>
+// 이미지 우클릭 방지
+document.addEventListener("contextmenu", e => e.preventDefault());
+
+const puzzleData = [
+  // {stage:1, question:"차가 주차된 곳에 가려진 숫자는?", image:"p1.png", answer:"61", inputType:"number", hints:[{type:'text',content:'개수'},{type:'text',content:'동그라미 개수'}]},
+  { stage: 1, image: "p1.png", question: "차가 주치된 곳에 가려진 숫자는?", answer: "61", inputType: "number", hints: [{type: 'text', content: '거꾸로'}] },
+  { stage: 2, image: "p2.png", question: "정답을 입력하세요.", answer: ["COSMOS","cosmos"], inputType: "text", hints: [{type: 'text', content: '마룻바닥'},{type: 'text', content: '영어'}] },
+  { stage: 3, image: "p3.png", question: "숫자를 입력하세요.", answer: "6906", inputType: "number", hints: [{type: 'text', content: '시계'}] },
+  { stage: 4, image: "p4.png", question: "숫자를 입력하세요.",  answer: ["5119658", "5773652"], inputType: "number", hints: [{type: 'text', content: '키패드'}] },
+  { stage: 5, image: "p5.png", question: "숫자를 입력하세요.", answer: "2056", inputType: "number", hints: [{type: 'text', content: '디지털 숫자'},{type: 'text', content: '순서'}] },
+  { stage: 6, image: "p6.png", question: "벽에 걸려있는 시계는 고장이 나 멈춰있다. 숫자가 적혀 있지 않고, 똑바로 걸려 있는 것이 아니다. 시침과 분침 사이의 각도는 105도일 때 시계는 현재 몇 시 몇 분에 멈춰있는 것인지 쓰시오.(세자리 숫자를 입력하세요.)", answer: ["230","930"], inputType: "number", hints: [{type: 'text', content: '시계 전체는 360도, 각 숫자 사이의 각도는 30도'}] },
+  { stage: 7, image: "p7.png", question: "숫자를 입력하세요.", answer: "2118", inputType: "number", hints: [{type: 'text', content: '영어'}, {type: 'text', content: '대칭'}] },
+  { stage: 8, image: "p8.png", question: "정답을 입력하시오.", answer: ["ESCAPE","Escape","escape"], inputType: "text", hints: [{type: 'text', content: '다른 눈높이'},{type: 'text', content: '영어'}] }
+];
+
+let currentStage = 1;
+let totalWrongCount = 0;
+let imageZoomOverlay = null;
+const clearedStages = new Set();
+const hintUsage = {};
+const stageState = {};
+
+function updateStatusBar() {
+  const totalHints = Object.values(hintUsage).reduce((acc, curr) => acc + curr, 0);
+  if (totalHints > 0) {
+    $("#hint-count-badge").css("display", "inline-block");
+    $("#total-hint-count").text(totalHints);
+  } else {
+    $("#hint-count-badge").hide();
+  }
+  $("#wrong-count").text(totalWrongCount);
+}
+
+function renderStageButtons() {
+  const c = $("#stage-buttons").empty();
+  puzzleData.forEach(p => {
+    const h = hintUsage[p.stage] || 0;
+    const label = h > 0 ? `${p.stage}단계(${h})` : `${p.stage}단계`;
+    let cls = "stage-button";
+    if (p.stage === currentStage) cls += " active";
+    else if (clearedStages.has(p.stage)) cls += " stage-success";
+    c.append(`<button class="${cls}" onclick="selectStage(${p.stage})">${label}</button>`);
+  });
+}
+
+function loadPuzzle(stage) {
+  const p = puzzleData.find(x => x.stage === stage);
+  const saved = stageState[stage] || {};
+  let hintBtns = "", hintDivs = "";
+
+  p.hints.forEach((h, i) => {
+    const used = (hintUsage[stage] || 0) >= i + 1;
+    const enabled = i === 0 || (hintUsage[stage] || 0) >= i;
+    hintBtns += `<button class="btn-hint ${enabled ? "enabled" : ""}" ${enabled ? "" : "disabled"} onclick="toggleHint(${i + 1})">힌트 ${i + 1}</button>`;
+    if (used) {
+      const content = h.type === "text" ? h.content : `<img src="${h.content}" class="quiz-image" style="min-height:auto; margin-top:10px;"
+             onclick="toggleImageZoom(this.src)">`;
+      hintDivs += `<div class="hint-content">${content}</div>`;
+    }
+  });
+
+  $("#puzzle").html(`
+    <div class="quiz-question">${p.question}</div>
+    <img src="${p.image}" class="quiz-image" onclick="toggleImageZoom(this.src)" onerror="this.alt='이미지 없음 (${p.image})'">
+    <div class="input-group">
+      <input id="answer" type="${p.inputType}" value="${saved.answer || ""}" placeholder="정답" onkeypress="if(event.keyCode==13) checkAnswer()">
+      <button class="btn-submit" onclick="checkAnswer()">확인</button>
     </div>
+    <p id="result" style="font-weight:700; height:25px; margin:10px 0; font-size:18px; text-align:center;"></p>
+    <div style="border-top:1.5px solid #eee; padding-top:20px; margin-top:15px;">${hintBtns}</div>
+    ${hintDivs}
+  `);
+}
 
-    <script>
-      document.addEventListener('contextmenu', e => e.preventDefault());
+function checkAnswer() {
+  const p = puzzleData.find(x => x.stage === currentStage);
+  const v = $("#answer").val().trim();
+  const ok = Array.isArray(p.answer) ? p.answer.includes(v) : v === p.answer;
 
-      const puzzleData = [
-        { stage: 1, image: "p1.png", text: "차가 주치된 곳에 가려진 숫자는?", answer: "61", inputType: "number", hints: [{type: 'text', content: '거꾸로'}] },
-        { stage: 2, image: "p2.png", text: "숫자를 입력하세요.", answer: "6906", inputType: "number", hints: [{type: 'text', content: '시계'}] },
-        { stage: 3, image: "p4.png", text: "숫자를 입력하세요.",  answer: ["5119658", "5773652"], inputType: "number", hints: [{type: 'text', content: '키패드'}] },
-        { stage: 4, image: "p3.png", text: "숫자를 입력하세요.", answer: "2056", inputType: "number", hints: [{type: 'text', content: '디지털 숫자'},{type: 'text', content: '순서'}] },
-        { stage: 5, image: "p5.png", text: "벽에 걸려있는 시계는 고장이 나 멈춰있다. 숫자가 적혀 있지 않고, 똑바로 걸려 있는 것이 아니다. 시침과 분침 사이의 각도는 105도일 때 시계는 현재 몇 시 몇 분에 멈춰있는 것인지 쓰시오.(세자리 숫자를 입력하세요.)", answer: ["230","930"], inputType: "number", hints: [{type: 'text', content: '시계 전체는 360도, 각 숫자 사이의 각도는 30도'}] },
-        { stage: 6, image: "p6.png", text: "숫자를 입력하세요.", answer: "2118", inputType: "number", hints: [{type: 'text', content: '영어'}, {type: 'text', content: '대칭'}] },
-        { stage: 7, image: "p7.png", text: "정답을 입력하시오.", answer: ["ESCAPE","Escape","escape"], inputType: "text", hints: [{type: 'text', content: '다른 눈높이'},{type: 'text', content: '영어'}] }
-      ];
+  if (ok) {
+    stageState[currentStage] = { answer: v, result: "정답!" };
+    clearedStages.add(currentStage);
+    renderStageButtons();
+    showSuccess();
+  } else {
+    totalWrongCount++;
+    updateStatusBar();
+    $("#result").css("color", "var(--danger)").text("틀렸습니다! 다시 생각해보세요.");
+  }
+}
 
-      let currentStage = 1;
-      const clearedStages = new Set();
-      const availablePuzzles = puzzleData.map(p => p.stage);
-      const hintUsage = {};
-      const wrongAttempts = {};
+function showSuccess() {
+  const modal = $(`
+    <div class="success-overlay">
+      <div class="success-modal">
+        <h2 style="color:var(--success); margin-top:0;">🎉 정답!</h2>
+        <p style="font-size:18px;">참 잘하셨습니다!</p>
+        <button id="modalNextBtn" class="btn-submit" style="width:100%; margin-top:20px;">다음 단계로</button>
+      </div>
+    </div>
+  `);
+  $("body").append(modal);
 
-      function renderHeader() {
-        const headerContainer = document.getElementById("header");
-        headerContainer.innerHTML = `
-          <div class="header-container">
-            <h1>CrazyHouse</h1>
-            <div id="stage-buttons" class="stage-button-container"></div><br>
-            <div id="total-wrong-attempts" class="wrong-attempts-container"></div>
-          </div>
-        `;
-        renderStageButtons();
-      }
+  const closeAndNext = () => {
+    $(".success-overlay").remove();
+    nextAction();
+    $(document).off("keydown", handleEnter);
+  };
 
-      function renderStageButtons() {
-        const container = document.getElementById("stage-buttons");
-        container.innerHTML = "";
-        availablePuzzles.forEach(stage => {
-          const btn = document.createElement("button");
-          btn.id = "btn" + stage;
-          btn.className = "stage-button";
-          btn.onclick = () => selectStage(stage);
-          container.appendChild(btn);
-          if (stage % 4 === 0) container.appendChild(document.createElement("br"));
-        });
-        updateButtons();
-      }
+  const handleEnter = (e) => { if (e.key === "Enter") closeAndNext(); };
+  $(document).on("keydown", handleEnter);
+  $("#modalNextBtn").click(closeAndNext);
+}
 
-      function updateButtons() {
-        availablePuzzles.forEach(stageNum => {
-          const btn = document.getElementById("btn" + stageNum);
-          if (!btn) return;
-          btn.classList.remove("active","stage-success");
-          let label = stageNum + "단계";
-          if (hintUsage[stageNum]) label += `(${hintUsage[stageNum]})`;
-          btn.textContent = label;
-          if (clearedStages.has(stageNum)) btn.classList.add("stage-success");
-          btn.disabled = false;
-        });
+function nextAction() {
+  if (clearedStages.size === puzzleData.length) {
+    showFinalSuccess();
+    return;
+  }
+  let nextStage = -1;
+  for (let i = currentStage + 1; i <= puzzleData.length; i++) {
+    if (!clearedStages.has(i)) { nextStage = i; break; }
+  }
+  if (nextStage === -1) {
+    for (let i = 1; i <= puzzleData.length; i++) {
+      if (!clearedStages.has(i)) { nextStage = i; break; }
+    }
+  }
+  if (nextStage !== -1) selectStage(nextStage);
+}
 
-        const currentBtn = document.getElementById("btn" + currentStage);
-        if (currentBtn && !clearedStages.has(currentStage)) currentBtn.classList.add("active");
-      }
+function showFinalSuccess() {
+  const finalLayer = $(`
+    <div id="final-success">
+      <img src="success.png" alt="Clear!" onerror="this.style.display='none'; alert('축하합니다! 모두 클리어하셨습니다.')">
+      <div style="position:absolute; bottom:15%; font-size:16px; color:#666; background:rgba(255,255,255,0.8); padding:5px 15px; border-radius:20px;">화면을 클릭하여 돌아가기</div>
+    </div>
+  `);
+  finalLayer.click(function() {
+    $(this).fadeOut(300, function() { $(this).remove(); });
+  });
+  $("body").append(finalLayer);
+}
 
-      function updateTotalWrongAttempts() {
-        const totalWrong = Object.values(wrongAttempts).reduce((sum, c) => sum + c, 0);
-        document.getElementById("total-wrong-attempts").textContent = totalWrong > 0 ? `총 오답 횟수: ${totalWrong}` : "";
-      }
+function toggleImageZoom(src) {
+  // 이미 열려 있으면 제거
+  if (imageZoomOverlay) {
+    imageZoomOverlay.remove();
+    imageZoomOverlay = null;
+  }
 
-      function loadPuzzle(stage) {
-        const puzzleContainer = document.getElementById("puzzle");
-        if (stage > puzzleData.length) {
-          puzzleContainer.innerHTML = `<div class="quiz-container"><br><img src="success.png" width="450px"></div>`;
-          return;
-        }
+  imageZoomOverlay = $(`
+    <div id="image-zoom-overlay"
+         style="position:fixed;inset:0;background:rgba(0,0,0,0.95);
+         z-index:20000;display:flex;justify-content:center;
+         align-items:center;cursor:zoom-out;padding:10px;">
+      <img src="${src}" style="max-width:100%;max-height:100%;object-fit:contain;">
+    </div>
+  `);
 
-        const puzzle = puzzleData.find(p => p.stage === stage);
-        if (!puzzle) {
-          puzzleContainer.innerHTML = `<div class="quiz-container"><h2>${stage}단계 퍼즐을 찾을 수 없습니다.</h2></div>`;
-          return;
-        }
+  // 클릭 시 닫기
+  imageZoomOverlay.on("click", closeImageZoom);
 
-        // text 먼저, image 나중
-        let contentHTML = '';
-        if (puzzle.text) contentHTML += `<div class="quiz">${puzzle.text}</div><br>`;
-        if (puzzle.image) contentHTML += `<img src="${puzzle.image}" width="450px"><br>`;
+  $("body").append(imageZoomOverlay);
+}
 
-        let hintButtonsHTML = '';
-        let hintDivsHTML = '';
-        if (puzzle.hints && puzzle.hints.length) {
-          puzzle.hints.forEach((hint,i)=>{
-            const n=i+1;
-            const isDisabled = n>1?'disabled':'';
-            hintButtonsHTML += `<button class="button" id="hint${n}-btn" onclick="toggleHint(${n})" ${isDisabled}>힌트${n}</button> `;
-            const content = hint.type==='text'?hint.content:`<img src="${hint.content}" width="450px">`;
-            hintDivsHTML += `<div id="hint${n}" class="quiz" style="display:none;">${content}</div>`;
-          });
-        }
+function closeImageZoom() {
+  if (imageZoomOverlay) {
+    imageZoomOverlay.remove();
+    imageZoomOverlay = null;
+  }
+}
 
-        puzzleContainer.innerHTML = `
-          <div class="quiz-container">
-            <br>${contentHTML}<br>
-            <input type="${puzzle.inputType}" id="answer" autocomplete="off">
-            <button class="button" onclick="checkAnswer()">확인</button>
-            <p id="result"></p><br><br>
-            ${hintButtonsHTML}
-            ${hintDivsHTML}
-          </div>
-        `;
+$(document).on("keydown", function (e) {
+  if (e.key === "Escape") {
+    closeImageZoom();
+  }
+});
 
-        const answerInput = document.getElementById("answer");
-        answerInput.addEventListener("keydown", e => { if(e.key==="Enter") checkAnswer(); });
-        setTimeout(()=>answerInput.focus(),0);
-      }
+function toggleHint(n) {
+  hintUsage[currentStage] = Math.max(hintUsage[currentStage] || 0, n);
+  updateStatusBar();
+  renderStageButtons();
+  loadPuzzle(currentStage);
+}
 
-      function advanceToNextStage() {
-        const uncleared = availablePuzzles.filter(s=>!clearedStages.has(s));
-        selectStage(uncleared.length?Math.min(...uncleared):puzzleData.length+1);
-      }
+function selectStage(s) {
+  currentStage = s;
+  loadPuzzle(s);
+  renderStageButtons();
+  window.scrollTo({ top: 0, behavior: 'smooth' }); // 단계 이동 시 상단으로 스크롤
+}
 
-      function checkAnswer() {
-        const answerInput = document.getElementById("answer");
-        const resultEl = document.getElementById("result");
-        const puzzle = puzzleData.find(p=>p.stage===currentStage);
-        if(!puzzle) return;
+$(document).ready(() => {
+  updateStatusBar();
+  renderStageButtons();
+  selectStage(1);
+});
+</script>
 
-        const userAnswer = answerInput.value.trim();
-        const isCorrect = Array.isArray(puzzle.answer)?puzzle.answer.includes(userAnswer):userAnswer===puzzle.answer;
-
-        if(isCorrect){
-          resultEl.textContent=`정답 → ${userAnswer}`; resultEl.style.color="green"; answerInput.disabled=true;
-          $(document).trigger('clearStage',{stage:currentStage});
-          if(!document.getElementById("next-stage-btn")){
-            const nextBtn=document.createElement("button");
-            nextBtn.id="next-stage-btn"; nextBtn.textContent="다음 단계 →";
-            nextBtn.onclick=advanceToNextStage; resultEl.after(nextBtn);
-          }
-        } else {
-          resultEl.textContent="틀렸습니다. 다시 시도하세요."; resultEl.style.color="red";
-          $(document).trigger('wrongAnswer',{stage:currentStage});
-          setTimeout(()=>resultEl.textContent="",2000);
-        }
-      }
-
-      function toggleHint(n){
-        const puzzle=puzzleData.find(p=>p.stage===currentStage);
-        if(!puzzle||!puzzle.hints) return;
-        const el=document.getElementById(`hint${n}`);
-        if(!el) return;
-        const isHidden=el.style.display==='none';
-        puzzle.hints.forEach((_,i)=>{const h=document.getElementById(`hint${i+1}`); if(h) h.style.display='none';});
-        if(isHidden){
-          el.style.display='block';
-          $(document).trigger('updateHint',{stage:currentStage,count:n});
-          const nextBtn=document.getElementById(`hint${n+1}-btn`);
-          if(nextBtn){ nextBtn.disabled=false; nextBtn.classList.remove("disabled"); }
-        }
-      }
-
-      function selectStage(stage){ currentStage=stage; loadPuzzle(stage); updateButtons(); }
-
-      $(document).ready(function(){
-        $(document).on('clearStage',(e,d)=>{ if(d?.stage){ clearedStages.add(d.stage); updateButtons(); } });
-        $(document).on('updateHint',(e,d)=>{ if(d&&d.stage&&typeof d.count==="number"){ if(!hintUsage[d.stage]||d.count>hintUsage[d.stage]){ hintUsage[d.stage]=d.count; updateButtons(); } } });
-        $(document).on('wrongAnswer',(e,d)=>{ if(d?.stage){ wrongAttempts[d.stage]=(wrongAttempts[d.stage]||0)+1; updateTotalWrongAttempts(); } });
-        $(document).on('selectStage',(e,d)=>{ if(d?.stage) selectStage(d.stage); });
-        document.addEventListener("keydown",e=>{ const a=document.getElementById("answer"); if(a&&a.disabled&&(e.code==="Space"||e.key===" ")){ const b=document.getElementById("next-stage-btn"); if(b){ e.preventDefault(); b.click(); } }});
-        renderHeader();
-        selectStage(1);
-      });
-    </script>
 </body>
 </html>
