@@ -279,6 +279,7 @@ function loadPuzzle(stage) {
   `);
 }
 
+// 1. checkAnswer 함수 수정
 function checkAnswer() {
   const p = puzzleData.find(x => x.stage === currentStage);
   const v = $("#answer").val().trim();
@@ -292,8 +293,41 @@ function checkAnswer() {
   } else {
     totalWrongCount++;
     updateStatusBar();
-    $("#result").css("color", "var(--danger)").text("틀렸습니다! 다시 생각해보세요.");
+    showFailure(); // 오답 팝업 호출
   }
+}
+
+// 2. 오답 전용 팝업 함수 추가
+function showFailure() {
+  const modal = $(`
+    <div class="success-overlay" id="failureOverlay">
+      <div class="success-modal" style="border-top: 5px solid var(--danger);">
+        <h2 style="color:var(--danger); margin-top:0;">❌ 틀렸습니다!</h2>
+        <p style="font-size:18px;">다시 한번 생각해보세요.</p>
+        <button id="modalCloseBtn" class="btn-submit" style="width:100%; margin-top:20px; background:var(--danger);">다시 시도 (Enter)</button>
+      </div>
+    </div>
+  `);
+  $("body").append(modal);
+
+  // 팝업 닫기 처리 함수
+  const closeModal = () => {
+    $("#failureOverlay").remove();
+    $(document).off("keydown", handleFailureEnter); // 이벤트 제거
+    $("#answer").focus().select(); // 입력창에 포커스하고 텍스트 전체 선택 (바로 수정 가능하게)
+  };
+
+  // Enter 키 감지 함수
+  const handleFailureEnter = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); 
+      closeModal();
+    }
+  };
+
+  // 이벤트 등록
+  $(document).on("keydown", handleFailureEnter);
+  $("#modalCloseBtn").click(closeModal);
 }
 
 function showSuccess() {
