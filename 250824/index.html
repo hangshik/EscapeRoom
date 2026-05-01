@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>EscapeRoom - Mobile Optimized</title>
+<title>EscapeRoom</title>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 
 <style>
@@ -280,6 +280,7 @@ function loadPuzzle(stage) {
   `);
 }
 
+// 1. checkAnswer 함수 수정 (팝업 호출로 변경)
 function checkAnswer() {
   const p = puzzleData.find(x => x.stage === currentStage);
   const v = $("#answer").val().trim();
@@ -293,8 +294,41 @@ function checkAnswer() {
   } else {
     totalWrongCount++;
     updateStatusBar();
-    $("#result").css("color", "var(--danger)").text("틀렸습니다! 다시 생각해보세요.");
+    showFailure(); // 오답 팝업 호출
   }
+}
+
+// 2. Enter 키를 지원하는 오답 팝업 함수
+function showFailure() {
+  const modal = $(`
+    <div class="success-overlay" id="failureOverlay">
+      <div class="success-modal" style="border-top: 5px solid var(--danger);">
+        <h2 style="color:var(--danger); margin-top:0;">❌ 틀렸습니다!</h2>
+        <p style="font-size:18px;">다시 한번 생각해보세요.</p>
+        <button id="modalCloseBtn" class="btn-submit" style="width:100%; margin-top:20px; background:var(--danger);">다시 시도</button>
+      </div>
+    </div>
+  `);
+  $("body").append(modal);
+
+  // 팝업 닫기 함수
+  const closeModal = () => {
+    $("#failureOverlay").remove();
+    $(document).off("keydown", handleFailureEnter); // 이벤트 리스너 제거 (중요)
+    $("#answer").focus().select(); // 다시 입력하기 편하게 포커스 및 전체 선택
+  };
+
+  // Enter 키 감지 함수
+  const handleFailureEnter = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); // 기본 동작 방지
+      closeModal();
+    }
+  };
+
+  // 이벤트 등록
+  $(document).on("keydown", handleFailureEnter);
+  $("#modalCloseBtn").click(closeModal);
 }
 
 function showSuccess() {
