@@ -32,6 +32,11 @@
       border-bottom: 2px solid #007bff;
       padding-bottom: 0.7rem;
     }
+    /* 링크 스타일을 텍스트와 동일하게 유지 */
+    .logo a {
+      color: inherit; /* 원래 텍스트 색상 유지 */
+      text-decoration: none; /* 밑줄 제거 */
+    }
     .logo em {
       color: #007bff;
       font-style: normal;
@@ -69,7 +74,7 @@
 </head>
 <body>
   <div class="main-content">
-    <div class="logo"><em>Escape</em> Room</div>
+    <div class="logo"><a href="../qr/e0.png"><em>Escape</em> Room</a></div>
     
     <div class="main-menu-item">방탈출</div>
     <ul class="sub-menu">
@@ -86,7 +91,3 @@
   </div>
 </body>
 </html>
-
-
-
-
