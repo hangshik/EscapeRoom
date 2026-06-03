@@ -188,6 +188,20 @@ h1 {
   min-width: 150px;
 }
 
+.clearBtn {
+  border: 2px solid var(--danger) !important;
+  color: var(--danger) !important;
+  background-color: #ffffff !important;
+  font-weight: 800 !important;
+}
+.clearBtn:hover{
+  background-color: #fff5f5 !important;
+}
+.clearBtn:active{
+  background-color: #ffe3e3 !important;
+}
+
+
 /* 모달 디자인 */
 .success-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -231,9 +245,9 @@ h1 {
   <div class="grid-container" id="grid"></div>
   
 <div class="input-group" style="display: flex; width: 100%; gap: 8px;">
-  <button class="btn-ctrl" onclick="undoMove()">되돌리기</button>
-  <button class="btn-ctrl" onclick="resetPuzzle()">초기화</button>
-  <button class="btn-ctrl btn-submit" onclick="checkAnswer()">정답 확인</button>
+  <button class="btn-ctrl" onclick="undoMove()">↶ 되돌리기</button>
+  <button class="btn-ctrl clearBtn" onclick="resetPuzzle()">🔄 초기화</button>
+  <button class="btn-ctrl btn-submit" onclick="checkAnswer()">✓ 정답 확인</button>
 </div>
 
 <script>
@@ -386,10 +400,10 @@ $(document).on("keydown", function(e) {
 function showSuccess() {
   const modal = $(`
     <div class="success-overlay">
-      <div class="success-modal">
+      <div class="success-modal" style="border-top: 5px solid var(--success);">
         <h2 style="color:var(--success); margin-top:0;">🎉 정답!</h2>
         <p style="font-size:18px;">참 잘하셨습니다!</p>
-        <button id="modalNextBtn" class="btn-ctrl btn-submit" style="width:100%; margin-top:20px;">다음 단계로</button>
+        <button id="modalNextBtn" class="btn-ctrl btn-submit" style="width:100%; margin-top:20px;background:var(--success);">다음 단계로</button>
       </div>
     </div>
   `);
