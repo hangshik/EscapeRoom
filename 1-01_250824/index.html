@@ -334,10 +334,10 @@ function showFailure() {
 function showSuccess() {
   const modal = $(`
     <div class="success-overlay">
-      <div class="success-modal">
+      <div class="success-modal" style="border-top: 5px solid var(--success);"">
         <h2 style="color:var(--success); margin-top:0;">🎉 정답!</h2>
         <p style="font-size:18px;">참 잘하셨습니다!</p>
-        <button id="modalNextBtn" class="btn-submit" style="width:100%; margin-top:20px;">다음 단계로</button>
+        <button id="modalNextBtn" class="btn-submit" style="width:100%; margin-top:20px; background:var(--success);">다음 단계로</button>
       </div>
     </div>
   `);
