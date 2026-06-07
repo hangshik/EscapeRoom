@@ -201,6 +201,16 @@ h1 {
   background-color: #ffe3e3 !important;
 }
 
+#final-success {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20000;
+  flex-direction: column;
+}
 
 /* 모달 디자인 */
 .success-overlay {
@@ -398,25 +408,42 @@ $(document).on("keydown", function(e) {
 });
 
 function showSuccess() {
+  // 1. 모든 단계가 완료되었는지 확인
+  const totalStages = Object.keys(gridStageData).length;
+  const isAllCleared = clearedStages.size === totalStages;
+  
+  // 2. 미완료된 가장 낮은 단계 번호 찾기 (없으면 null)
+  let nextTarget = null;
+  for (let i = 1; i <= totalStages; i++) {
+    if (!clearedStages.has(i)) {
+      nextTarget = i;
+      break;
+    }
+  }
+
   const modal = $(`
     <div class="success-overlay">
       <div class="success-modal" style="border-top: 5px solid var(--success);">
         <h2 style="color:var(--success); margin-top:0;">🎉 정답!</h2>
-        <p style="font-size:18px;">참 잘하셨습니다!</p>
-        <button id="modalNextBtn" class="btn-ctrl btn-submit" style="width:100%; margin-top:20px;background:var(--success);">다음 단계로</button>
+        <p style="font-size:18px;">
+          ${isAllCleared ? '모든 단계를 완료했습니다!' : (nextTarget ? `${nextTarget}단계로 이동합니다.` : '축하합니다!')}
+        </p>
+        <button id="modalNextBtn" class="btn-ctrl btn-submit" style="width:100%; margin-top:20px;background:var(--success);">
+          확인
+        </button>
       </div>
     </div>
   `);
   $("body").append(modal);
 
-  // Enter 키 관련 이벤트 리스너를 모두 제거하고 클릭 이벤트만 남겼습니다.
-  const closeAndNext = () => {
+  $("#modalNextBtn").click(() => {
     modal.remove();
-    let next = currentStage + 1;
-    if (next <= Object.keys(gridStageData).length) setStage(next);
-  };
-
-  $("#modalNextBtn").click(closeAndNext);
+    if (isAllCleared) {
+      showFinalSuccess(); // 전부 다 깼을 때 최종 화면
+    } else if (nextTarget) {
+      setStage(nextTarget); // 못 깬 단계 중 가장 빠른 곳으로 이동
+    }
+  });
 }
 
 function showFailure() {
@@ -437,6 +464,30 @@ function showFailure() {
   };
 
   $("#modalCloseBtn").click(closeModal);
+}
+
+function showFinalSuccess() {
+  const finalLayer = $(`
+    <div id="final-success" style="
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      z-index: 20000; padding: 20px; box-sizing: border-box;
+    ">
+      <img src="success.png" alt="Clear!" style="
+        max-width: 100%; height: auto; /* Width-responsive for smaller screens */
+        max-height: 80%; /* Prevention of overflow on short screens */
+      " onerror="this.style.display='none'; alert('축하합니다! 모두 클리어하셨습니다.')">
+      <div style="
+        margin-top: 20px; font-size: 16px; color: #666;
+        background: rgba(0,0,0,0.05); padding: 8px 20px; border-radius: 20px;
+      ">화면을 클릭하여 돌아가기</div>
+    </div>
+  `);
+  finalLayer.click(function() {
+    $(this).fadeOut(300, function() { $(this).remove(); });
+  });
+  $("body").append(finalLayer);
 }
 
 $(document).ready(() => {
