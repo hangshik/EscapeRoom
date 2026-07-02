@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>랜덤 팀 매칭 시스템</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 롤링 애니메이션 */
+        @keyframes rolling {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+        .rolling-active {
+            animation: rolling 0.2s linear infinite;
+        }
+        /* 팝업 등장 애니메이션 */
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in {
+            animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-6 font-sans relative overflow-x-hidden">
+
+    <canvas id="particleCanvas" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></canvas>
+
+    <main class="w-full max-w-4xl bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-slate-700 z-10 my-auto">
+        <h1 class="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            <i class="fa-solid fa-users-gear mr-2"></i>랜덤 팀 매칭 시스템
+        </h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-1 bg-slate-800 p-4 rounded-xl border border-slate-700/50">
+                <h2 class="text-lg font-bold mb-4 flex items-center justify-between">
+                    <span><i class="fa-solid fa-user-group mr-2 text-cyan-400"></i>참가자 (<span id="userCount">0</span>명)</span>
+                </h2>
+                
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="nameInput" placeholder="이름 입력" class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-400 text-white">
+                    <button onclick="addMember()" class="bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm transition-all shadow-md shadow-cyan-500/20">
+                        추가
+                    </button>
+                </div>
+
+                <ul id="memberList" class="space-y-2 max-h-64 overflow-y-auto pr-1 border border-slate-700/50 p-2 rounded-lg bg-slate-900/50">
+                    </ul>
+            </div>
+
+            <div class="md:col-span-2 flex flex-col justify-between bg-slate-800 p-4 rounded-xl border border-slate-700/50">
+                <div>
+                    <h2 class="text-lg font-bold mb-4"><i class="fa-solid fa-sliders mr-2 text-blue-400"></i>팀 생성 조건</h2>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">원하는 팀 수</label>
+                            <input type="number" id="teamCountInput" value="3" min="1" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">팀당 최대 인원</label>
+                            <input type="number" id="memberCountInput" value="3" min="1" placeholder="제한 없음" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                        </div>
+                    </div>
+
+                    <button onclick="startMatching()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all text-lg cursor-pointer">
+                        <i class="fa-solid fa-shuffle mr-2"></i>팀 섞기 시작!
+                    </button>
+                </div>
+
+                <div class="mt-6 border-t border-slate-700 pt-6 min-h-[220px] flex flex-col items-center justify-center relative">
+                    
+                    <div id="rollingSection" class="hidden absolute inset-0 bg-slate-800 flex flex-col items-center justify-center z-20">
+                        <p class="text-sm text-slate-400 mb-2 animate-pulse">팀원을 무작위로 배치하는 중...</p>
+                        <div class="h-12 overflow-hidden border-2 border-cyan-500 rounded-lg px-6 bg-slate-900 flex items-center justify-center min-w-[200px]">
+                            <div id="rollingBox" class="text-xl font-bold text-cyan-400 text-center space-y-2 py-2">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div id="resultSection" class="w-full hidden animate-pop-in flex flex-col gap-4">
+                        <h3 class="text-xl font-bold text-center text-emerald-400 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-square-poll-vertical"></i> 매칭 완료!
+                        </h3>
+                        
+                        <div id="teamContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-64 overflow-y-auto p-2">
+                            </div>
+
+                        <div id="excludedContainer" class="hidden border border-dashed border-rose-500/40 bg-rose-950/20 rounded-xl p-3">
+                            <h4 class="text-xs font-bold text-rose-400 mb-1.5"><i class="fa-solid fa-user-minus mr-1"></i>인원 제한으로 제외된 참가자</h4>
+                            <div id="excludedList" class="flex flex-wrap gap-1.5"></div>
+                        </div>
+                    </div>
+
+                    <div id="placeholderSection" class="text-slate-500 text-center">
+                        <i class="fa-solid fa-solid fa-circle-nodes text-4xl mb-2 block opacity-40"></i>
+                        조건을 설정하고 버튼을 누르면 팀이 구성됩니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 요청하신 기본 멤버 리스트 반영
+        let members = ['송승환', '조나영', '조혜연', '박성준', '김사랑', '안희일', '윤사랑', '장은경', '이건희'];
+
+        // 파티클(입자) 설정을 위한 변수
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 멤버 렌더링 함수
+        function renderMembers() {
+            const list = document.getElementById('memberList');
+            const countSpan = document.getElementById('userCount');
+            list.innerHTML = '';
+            countSpan.innerText = members.length;
+
+            members.forEach((name, index) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-slate-700/40 hover:bg-slate-700 px-3 py-2 rounded-lg text-sm transition-colors group";
+                li.innerHTML = `
+                    <span class="font-medium">${name}</span>
+                    <button onclick="removeMember(${index})" class="text-slate-400 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // 멤버 추가
+        function addMember() {
+            const input = document.getElementById('nameInput');
+            const name = input.value.trim();
+            if(!name) return;
+            members.push(name);
+            input.value = '';
+            renderMembers();
+            input.focus();
+        }
+
+        document.getElementById('nameInput').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') addMember();
+        });
+
+        // 멤버 삭제
+        function removeMember(index) {
+            members.splice(index, 1);
+            renderMembers();
+        }
+
+        // 파티클 생성 클래스
+        class Particle {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.size = Math.random() * 6 + 4;
+                this.speedX = (Math.random() - 0.5) * 14;
+                this.speedY = (Math.random() - 0.5) * 14 - 4;
+                this.color = `hsl(${Math.random() * 360}, 85%, 65%)`;
+                this.alpha = 1;
+                this.gravity = 0.18;
+            }
+            update() {
+                this.speedY += this.gravity;
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.alpha -= 0.015;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                    i--;
+                }
+            }
+            if (particles.length > 0) {
+                requestAnimationFrame(animateParticles);
+            }
+        }
+
+        function triggerCelebration() {
+            particles = [];
+            for (let i = 0; i < 150; i++) {
+                particles.push(new Particle());
+            }
+            animateParticles();
+        }
+
+        // 팀 매칭 핵심 로직
+        function startMatching() {
+            if (members.length === 0) {
+                alert("참가자를 최소 1명 이상 등록해주세요.");
+                return;
+            }
+
+            const teamCount = parseInt(document.getElementById('teamCountInput').value) || 1;
+            const maxMemberCount = parseInt(document.getElementById('memberCountInput').value) || Infinity;
+
+            const rollingSection = document.getElementById('rollingSection');
+            const resultSection = document.getElementById('resultSection');
+            const placeholderSection = document.getElementById('placeholderSection');
+            const rollingBox = document.getElementById('rollingBox');
+            const excludedContainer = document.getElementById('excludedContainer');
+            const excludedList = document.getElementById('excludedList');
+
+            // UI 초기화
+            placeholderSection.classList.add('hidden');
+            resultSection.classList.add('hidden');
+            excludedContainer.classList.add('hidden');
+            rollingSection.classList.remove('hidden');
+
+            // 롤링 이펙트 데이터 셋업
+            let rollingHtml = '';
+            for(let i=0; i<20; i++) {
+                const randomName = members[Math.floor(Math.random() * members.length)];
+                rollingHtml += `<div>${randomName}</div>`;
+            }
+            rollingBox.innerHTML = rollingHtml;
+            rollingBox.classList.add('rolling-active');
+
+            // 3초 후 결과 계산 및 애니메이션 시작
+            setTimeout(() => {
+                rollingBox.classList.remove('rolling-active');
+                rollingSection.classList.add('hidden');
+                resultSection.classList.remove('hidden');
+
+                // 1. 순서 무작위 셔플
+                let shuffled = [...members].sort(() => Math.random() - 0.5);
+                
+                // 2. 최대 수용 가능 인원 계산
+                const maxTotalSeats = teamCount * maxMemberCount;
+                
+                // 배치될 명단과 인원 초과로 탈락(제외)될 명단 분리
+                let targetMembers = shuffled.slice(0, maxTotalSeats);
+                let excludedMembers = shuffled.slice(maxTotalSeats);
+
+                // 3. 팀 분배 틀 생성
+                let teams = Array.from({ length: teamCount }, () => []);
+                
+                // 순차 분배 알고리즘
+                let currentTeam = 0;
+                targetMembers.forEach(member => {
+                    teams[currentTeam].push(member);
+                    currentTeam = (currentTeam + 1) % teamCount;
+                });
+
+                // 4. 결과 팀 카드 화면 렌더링
+                const container = document.getElementById('teamContainer');
+                container.innerHTML = '';
+
+                teams.forEach((team, idx) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-900/60 border border-slate-700 p-4 rounded-xl shadow-inner animate-pop-in";
+                    card.style.animationDelay = `${idx * 0.1}s`;
+
+                    const memberBadges = team.length > 0 
+                        ? team.map(m => `<span class="inline-block bg-slate-700/80 text-white text-xs font-bold px-2.5 py-1 rounded-md border border-slate-600 transition-all transform hover:scale-125 hover:border-cyan-400 hover:text-cyan-300 cursor-default">${m}</span>`).join('')
+                        : `<span class="text-xs text-slate-500 italic">멤버 없음</span>`;
+
+                    card.innerHTML = `
+                        <h4 class="text-sm font-extrabold text-cyan-400 mb-2 flex justify-between items-center">
+                            <span>TEAM ${idx + 1}</span>
+                            <span class="text-xs font-normal text-slate-400">${team.length} / ${maxMemberCount === Infinity ? '∞' : maxMemberCount}명</span>
+                        </h4>
+                        <div class="flex flex-wrap gap-1.5">
+                            ${memberBadges}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+
+                // 5. 제외된 인원이 있다면 화면에 출력
+                if (excludedMembers.length > 0) {
+                    excludedContainer.classList.remove('hidden');
+                    excludedList.innerHTML = excludedMembers.map(m => 
+                        `<span class="inline-block bg-rose-950/40 text-rose-300/80 text-xs px-2 py-0.5 rounded border border-rose-900/50">${m}</span>`
+                    ).join('');
+                }
+
+                // 축하 효과 트리거
+                triggerCelebration();
+
+            }, 3000);
+        }
+
+        // 앱 초기 명단 로드
+        renderMembers();
+    </script>
+</body>
+</html>
