@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Color Memory Puzzle</title>
+  
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --active: #007bff;
+      --success: #28a745;
+      --danger: #dc3545;
+      --yellow: #ffc107;
+      --text-main: #222222;
+      --text-sub: #555555;
+      --border: #e9ecef;
+      --cell-bg: #f1f3f5;
+    }
+
+    * {
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
+
+    body {
+      margin: 0;
+      padding: 15px 10px;
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .title-area {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .title-area h1 {
+      font-size: 36px;
+      font-weight: 800;
+      margin: 0;
+      color: var(--text-main);
+    }
+
+    .container-fixed {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      padding: 20px;
+      width: 100%;
+    }
+
+    .puzzle-wrapper {
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      aspect-ratio: 1 / 1;
+      position: relative;
+      border-radius: 12px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 6px;
+      width: 100%;
+      height: 100%;
+    }
+    .cell {
+      border-radius: 12px;
+      background: var(--cell-bg);
+      border: none;
+      cursor: pointer;
+      transition: background 0.1s, transform 0.1s; /* 빠른 전환을 위해 transition 시간 조정 */
+    }
+    .cell:active {
+      transform: scale(0.95);
+    }
+    
+    .cell.color-red { background: var(--danger); }
+    .cell.color-yellow { background: var(--yellow); }
+    .cell.color-blue { background: var(--active); }
+    .cell.color-green { background: var(--success); }
+    
+    .cell.wrong-click {
+      position: relative;
+    }
+    .cell.wrong-click::after {
+      content: '✕';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .flash-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      border-radius: 12px;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-size: 22px;
+      font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+
+    .control-area {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+    .control-btn {
+      flex: 1;
+      height: 54px;
+      border-radius: 12px;
+      border: none;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      transition: filter 0.2s;
+    }
+    .control-btn:active { filter: brightness(0.9); }
+    .control-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #btn-start { background: var(--active); }
+    #btn-reset { background: #6c757d; }
+
+    .guide-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+      padding: 20px;
+      word-break: keep-all;
+    }
+    .guide-card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 15px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .guide-body {
+      font-size: 15px;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+
+    /* 누적 기록 */
+    .guide-stats { border-left: 6px solid var(--danger); }
+    .guide-stats h2 { color: var(--danger); }
+    .reset-record-btn {
+      background: #fff;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .record-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      font-size: 14px;
+    }
+    .record-table th, .record-table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .record-table th { font-weight: 700; color: var(--text-main); }
+
+    /* 퍼즐 규칙 */
+    .guide-rules { border-left: 6px solid var(--active); }
+    .guide-rules h2 { color: var(--active); }
+    .guide-rules ul { list-style-type: none; padding: 0; margin: 0; }
+    .guide-rules li { margin-bottom: 6px; }
+
+    /* 키보드 단축키 */
+    .guide-keys { border-left: 6px solid var(--success); }
+    .guide-keys h2 { color: var(--success); }
+    .key-badge {
+      display: inline-block;
+      background: #f1f3f5;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-right: 6px;
+      box-shadow: 0 2px 0 #ced4da;
+    }
+    .key-item { margin-bottom: 10px; display: flex; align-items: center; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-card {
+      width: 90%;
+      max-width: 350px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 30px 20px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .modal-card.success { border-top: 6px solid var(--success); }
+    .modal-card.fail { border-top: 6px solid var(--danger); }
+    .modal-card.confirm-reset { border-top: 6px solid var(--danger); }
+    
+    .modal-title { font-size: 24px; font-weight: 800; margin: 0 0 15px 0; }
+    .modal-card.success .modal-title { color: var(--success); }
+    .modal-card.fail .modal-title { color: var(--danger); }
+    .modal-card.confirm-reset .modal-title { color: var(--danger); }
+    
+    .modal-desc {
+      display: none;
+      font-size: 15px;
+      color: var(--text-sub);
+      margin: 0 0 20px 0;
+      line-height: 1.5;
+      word-break: keep-all;
+    }
+
+    .modal-btn-group {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .modal-btn {
+      flex: 1;
+      height: 48px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .modal-btn:active { opacity: 0.9; }
+    .modal-btn.secondary { background: #6c757d; }
+    .modal-btn.danger { background: var(--danger); }
+    .modal-card.success .modal-btn.primary { background: var(--success); }
+    .modal-card.fail .modal-btn.primary { background: var(--danger); }
+
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <!-- 타이틀 -->
+    <div class="title-area">
+      <h1>Color Memory</h1>
+    </div>
+
+    <!-- 퍼즐 영역 (단계 영역 삭제됨) -->
+    <div class="container-fixed" style="padding-bottom: 30px;">
+      <div class="puzzle-wrapper">
+        <div class="grid" id="puzzle-grid">
+          <!-- JS 렌더링 -->
+        </div>
+        <div class="flash-overlay" id="flash-overlay">
+          <span>이 색상을 찾으세요!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 조작 버튼 -->
+    <div class="control-area">
+      <button class="control-btn" id="btn-reset">초기화</button>
+      <button class="control-btn" id="btn-start">시작</button>
+    </div>
+
+    <!-- 누적 기록 -->
+    <div class="guide-card guide-stats">
+      <h2>📊 누적 기록 <button class="reset-record-btn" id="btn-reset-records">누적기록 초기화</button></h2>
+      <div class="guide-body">
+        <table class="record-table">
+          <thead>
+            <tr>
+              <th>총 시도</th>
+              <th>성공</th>
+              <th>실패</th>
+            </tr>
+          </thead>
+          <tbody id="record-tbody">
+            <!-- JS 렌더링 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 퍼즐 규칙 -->
+    <div class="guide-card guide-rules">
+      <h2>◈ 퍼즐 규칙</h2>
+      <div class="guide-body">
+        <ul>
+          <li>• [시작] 버튼을 누르면 6x6 그리드에 4가지 색상이 순서대로 나타납니다.</li>
+          <li>• 색상 노출은 <strong>최대 6개까지만 동시에 표시</strong>되며 꼬리를 물듯 진행됩니다.</li>
+          <li>• 모든 색상이 표시된 후 전체 화면에 '하나의 목표 색상'이 깜빡입니다.</li>
+          <li>• 기억을 더듬어 목표 색상이었던 칸 9개를 모두 클릭하세요!</li>
+          <li>• 단 한 번이라도 틀린 색상을 클릭하면 즉시 실패입니다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 키보드 단축키 -->
+    <div class="guide-card guide-keys">
+      <h2>⌨ 키보드 단축키</h2>
+      <div class="guide-body">
+        <div class="key-item"><span class="key-badge">Space</span> 게임 시작</div>
+        <div class="key-item"><span class="key-badge">R</span> 현재 게임 초기화</div>
+        <div class="key-item"><span class="key-badge">Enter</span> 팝업 닫기 및 진행</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 레이어 -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-card" id="modal-card">
+      <h3 class="modal-title" id="modal-title">결과</h3>
+      <p class="modal-desc" id="modal-desc"></p>
+      <div class="modal-btn-group">
+        <button class="modal-btn secondary" id="modal-btn-cancel" style="display: none;">취소</button>
+        <button class="modal-btn primary" id="modal-btn">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 우클릭 및 줌 제어
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    
+    const TARGET_COUNT = 9;
+    
+    // 게임 상태 관리
+    let gameState = {
+      status: 'ready', // ready, animating, playing
+      clicked: [],
+      board: [],
+      target: null
+    };
+
+    // 누적 기록 (브라우저 영구 보존)
+    let records = JSON.parse(localStorage.getItem('colorMemorySingleRecords')) || {
+      attempts: 0,
+      successes: 0,
+      failures: 0
+    };
+
+    // 저장 시 현재 플레이 중이던 보드 상태도 저장하여 리로드시 복구
+    let savedState = JSON.parse(localStorage.getItem('colorMemorySingleState'));
+    if (savedState && (savedState.status === 'playing' || savedState.status === 'ready')) {
+      gameState = savedState;
+    }
+
+    const saveStorage = () => {
+      localStorage.setItem('colorMemorySingleState', JSON.stringify(gameState));
+      localStorage.setItem('colorMemorySingleRecords', JSON.stringify(records));
+    };
+
+    // DOM 엘리먼트 캐싱
+    const puzzleGrid = document.getElementById('puzzle-grid');
+    const flashOverlay = document.getElementById('flash-overlay');
+    const btnStart = document.getElementById('btn-start');
+    const btnReset = document.getElementById('btn-reset');
+    const recordTbody = document.getElementById('record-tbody');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalCard = document.getElementById('modal-card');
+    const modalTitle = document.getElementById('modal-title');
+    const modalDesc = document.getElementById('modal-desc');
+    const modalBtn = document.getElementById('modal-btn');
+    const modalBtnCancel = document.getElementById('modal-btn-cancel');
+
+
+    // 랜덤 보드 생성
+    const generateBoard = () => {
+      const colors = ['red', 'yellow', 'blue', 'green'];
+      let newBoard = [];
+      colors.forEach(color => {
+        for(let i=0; i<9; i++) newBoard.push(color);
+      });
+      // 피셔-예이츠 셔플
+      for(let i = newBoard.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newBoard[i], newBoard[j]] = [newBoard[j], newBoard[i]];
+      }
+      const newTarget = colors[Math.floor(Math.random() * colors.length)];
+      return { board: newBoard, target: newTarget };
+    };
+
+    // UI 렌더링
+    const renderGrid = () => {
+      puzzleGrid.innerHTML = '';
+      
+      // 보드가 없으면 기본 빈 보드 생성 (에러 방지)
+      if(!gameState.board || gameState.board.length === 0) {
+        for(let i=0; i<36; i++) {
+           const cell = document.createElement('button');
+           cell.className = 'cell';
+           puzzleGrid.appendChild(cell);
+        }
+        return;
+      }
+
+      for (let i = 0; i < 36; i++) {
+        const cell = document.createElement('button');
+        cell.className = 'cell';
+        cell.dataset.index = i;
+        
+        // 플레잉 상태 복구 시 이미 맞춘 셀 색상 유지
+        if (gameState.status === 'playing') {
+          if (gameState.clicked.includes(i)) {
+            cell.classList.add(`color-${gameState.board[i]}`);
+          }
+        }
+        
+        cell.onclick = () => handleCellClick(i);
+        puzzleGrid.appendChild(cell);
+      }
+      updateControlButtons();
+    };
+
+    const renderRecords = () => {
+      recordTbody.innerHTML = `
+        <tr>
+          <td>${records.attempts}</td>
+          <td><span style="color:var(--success); font-weight:bold;">${records.successes}</span></td>
+          <td><span style="color:var(--danger); font-weight:bold;">${records.failures}</span></td>
+        </tr>
+      `;
+    };
+
+    const updateControlButtons = () => {
+      if (gameState.status === 'ready') {
+        btnStart.textContent = '시작';
+        btnStart.disabled = false;
+      } else if (gameState.status === 'playing') {
+        btnStart.textContent = '진행중';
+        btnStart.disabled = true;
+      } else {
+        btnStart.disabled = true; // animating
+      }
+    };
+
+    const startGame = () => {
+      if (gameState.status !== 'ready') return;
+      
+      const { board, target } = generateBoard();
+      gameState.board = board;
+      gameState.target = target;
+      gameState.status = 'animating';
+      gameState.clicked = [];
+      saveStorage();
+      
+      renderGrid();
+      updateControlButtons();
+      
+      const cells = puzzleGrid.children;
+      let i = 0;
+      const activeCells = []; // 화면에 켜져 있는 셀 인덱스 큐
+      const showDuration = 250; // 노출 시간 증가 (ms)
+      
+      // 애니메이션: 최대 6개까지만 보이도록 큐 방식 사용
+      const revealInterval = setInterval(() => {
+        if (i >= 36) {
+          clearInterval(revealInterval);
+          // 모든 노출이 끝난 후 남은 활성 셀들 정리 및 타겟 표시
+          setTimeout(() => {
+            for(let c of cells) c.className = 'cell'; // 전체 초기화
+            showTargetFlash(gameState.target);
+          }, showDuration);
+          return;
+        }
+        
+        // 현재 순서의 셀 켜기
+        cells[i].className = `cell color-${gameState.board[i]}`;
+        activeCells.push(i);
+        
+        // 켜져 있는 셀이 6개를 초과하면 가장 먼저 켜진 셀 끄기
+        if (activeCells.length > 6) {
+          const turnOffIndex = activeCells.shift();
+          cells[turnOffIndex].className = 'cell';
+        }
+        
+        i++;
+      }, showDuration);
+    };
+
+    const showTargetFlash = (targetColor) => {
+      const colorMap = {
+        'red': 'var(--danger)',
+        'yellow': 'var(--yellow)',
+        'blue': 'var(--active)',
+        'green': 'var(--success)'
+      };
+      
+      flashOverlay.style.backgroundColor = colorMap[targetColor];
+      flashOverlay.style.display = 'flex';
+      
+      setTimeout(() => {
+        flashOverlay.style.display = 'none';
+        gameState.status = 'playing';
+        records.attempts++;
+        saveStorage();
+        renderRecords();
+        updateControlButtons();
+      }, 1000); // 1초간 깜빡임 유지
+    };
+
+    const handleCellClick = (index) => {
+      if (gameState.status !== 'playing') return;
+      if (gameState.clicked.includes(index)) return; // 이미 클릭함
+
+      const actualColor = gameState.board[index];
+      const cell = puzzleGrid.children[index];
+      
+      cell.classList.add(`color-${actualColor}`);
+
+      if (actualColor === gameState.target) {
+        // 정답
+        gameState.clicked.push(index);
+        saveStorage();
+        if (gameState.clicked.length === TARGET_COUNT) {
+          handleWin();
+        }
+      } else {
+        // 오답
+        cell.classList.add('wrong-click');
+        handleLose(index);
+      }
+    };
+
+    const revealBoard = (wrongIndex = null) => {
+      const cells = puzzleGrid.children;
+      for (let i = 0; i < 36; i++) {
+        const color = gameState.board[i];
+        cells[i].className = `cell color-${color}`;
+        if (i === wrongIndex) {
+          cells[i].classList.add('wrong-click');
+        }
+      }
+    };
+
+    const handleWin = () => {
+      gameState.status = 'ready';
+      records.successes++;
+      saveStorage();
+      renderRecords();
+      updateControlButtons();
+      setTimeout(() => showModal('success'), 200);
+    };
+
+    const handleLose = (wrongIndex) => {
+      // 틀린 경우 전체 정답 보드를 즉시 공개
+      revealBoard(wrongIndex);
+      gameState.status = 'ready'; // 실패 후 바로 새 게임을 시작할 수 있도록 ready로 전환
+      records.failures++;
+      saveStorage();
+      renderRecords();
+      updateControlButtons();
+      setTimeout(() => showModal('fail'), 400);
+    };
+
+    const resetGame = () => {
+      gameState = { status: 'ready', clicked: [], board: [], target: null };
+      saveStorage();
+      renderGrid();
+      updateControlButtons();
+    };
+
+    const resetAllRecords = () => {
+      showModal('confirm-reset');
+    };
+
+    // 모달 제어
+    const showModal = (type) => {
+      modalOverlay.style.display = 'flex';
+      modalCard.className = `modal-card ${type}`;
+      
+      if (type === 'success') {
+        modalTitle.textContent = '🎉 성공!';
+        modalDesc.style.display = 'none';
+        modalBtnCancel.style.display = 'none';
+        modalBtn.className = 'modal-btn primary';
+        modalBtn.textContent = '다시 하기';
+        modalBtn.onclick = () => closeModal();
+      } else if (type === 'fail') {
+        modalTitle.textContent = '❌ 틀렸습니다!';
+        modalDesc.style.display = 'none';
+        modalBtnCancel.style.display = 'none';
+        modalBtn.className = 'modal-btn primary';
+        modalBtn.textContent = '다시 도전';
+        modalBtn.onclick = () => closeModal();
+      } else if (type === 'confirm-reset') {
+        modalTitle.textContent = '🗑️ 기록 초기화';
+        modalDesc.textContent = '모든 누적 기록과 플레이 상태를 정말로 초기화하시겠습니까?';
+        modalDesc.style.display = 'block';
+        modalBtnCancel.style.display = 'block';
+        modalBtn.className = 'modal-btn danger';
+        modalBtn.textContent = '초기화';
+        
+        modalBtn.onclick = () => {
+          localStorage.removeItem('colorMemorySingleState');
+          localStorage.removeItem('colorMemorySingleRecords');
+          records = { attempts: 0, successes: 0, failures: 0 };
+          gameState = { status: 'ready', clicked: [], board: [], target: null };
+          saveStorage();
+          closeModal();
+          renderGrid();
+          renderRecords();
+          updateControlButtons();
+        };
+
+        modalBtnCancel.onclick = () => closeModal();
+      }
+      
+      setTimeout(() => modalBtn.focus(), 100);
+    };
+
+    const closeModal = () => {
+      modalOverlay.style.display = 'none';
+      btnStart.focus();
+    };
+
+    btnStart.addEventListener('click', startGame);
+    btnReset.addEventListener('click', resetGame);
+    document.getElementById('btn-reset-records').addEventListener('click', resetAllRecords);
+
+    // 단축키
+    window.addEventListener('keydown', (e) => {
+      if (modalOverlay.style.display === 'flex') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (modalBtnCancel.style.display !== 'none') {
+            modalBtnCancel.click();
+          } else {
+            closeModal();
+          }
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          modalBtn.click();
+        }
+        return;
+      }
+
+      if (e.key === ' ') {
+        e.preventDefault();
+        startGame();
+      } else if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        resetGame();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+    });
+
+    // 초기 렌더링
+    renderGrid();
+    renderRecords();
+    updateControlButtons();
+
+  </script>
+</body>
+</html>
