@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    /* 기본 리셋 및 글로벌 스타일 */
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background-color: rgba(241, 245, 249, 0.8);
+      padding: 24px;
+      min-height: 100vh;
+      color: rgb(30, 41, 59);
+      margin: 0;
+    }
+
+    /* 유틸리티 & 애니메이션 */
+    .hidden { display: none !important; }
+    .draggable-row { cursor: grab; user-select: none; }
+    .draggable-row:active { cursor: grabbing; }
+    .dragging { opacity: 0.4; background-color: #e0e7ff !important; }
+
+    @keyframes ping {
+      75%, 100% { transform: scale(2); opacity: 0; }
+    }
+    .animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+    /* 레이아웃 & 카드 공통 */
+    .dashboard-container {
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card {
+      background-color: rgb(255, 255, 255);
+      border-radius: 16px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    /* 헤더 스타일 */
+    .header-card {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+    }
+    .header-title-box { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+    .header-icon {
+      padding: 12px;
+      background-color: rgb(238, 242, 255);
+      color: rgb(79, 70, 229);
+      border-radius: 12px;
+      border: 1px solid rgba(224, 231, 255, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-title { font-weight: 800; letter-spacing: -0.025em; line-height: 1; margin: 0 0 4px 0; color: rgb(15, 23, 42); font-size: 22px; }
+    .header-sub { font-weight: 500; margin: 0; color: rgb(100, 116, 139); font-size: 13px; }
+
+    /* 버튼 공통 & 종류 */
+    .btn-group { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; }
+    .btn {
+      height: 40px;
+      padding: 0 14px;
+      font-weight: 700;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+    .btn-slate { background-color: rgb(241, 245, 249); color: rgb(51, 65, 85); border-color: rgba(226, 232, 240, 0.6); }
+    .btn-indigo { background-color: rgb(238, 242, 255); color: rgb(79, 70, 229); border-color: rgba(199, 210, 254, 0.6); }
+    .btn-indigo-active { background-color: rgb(79, 70, 229); color: rgb(255, 255, 255); border-color: rgb(79, 70, 229); }
+    .btn-amber { background-color: rgb(254, 243, 199); color: rgb(180, 83, 9); border-color: rgba(253, 230, 138, 0.8); }
+    .btn-amber-active { background-color: rgb(217, 119, 6); color: rgb(255, 255, 255); border-color: rgb(217, 119, 6); }
+    .btn-emerald { background-color: rgb(236, 253, 245); color: rgb(4, 120, 87); border-color: rgba(167, 243, 208, 0.8); }
+
+    /* 접속 상태 & 범례 바 */
+    .legend-card {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 20px;
+    }
+    .stat-box { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 12px; border: 1px solid; }
+    .stat-blue { background-color: rgba(239, 246, 255, 0.8); border-color: rgb(219, 234, 254); }
+    .stat-emerald { background-color: rgba(236, 253, 245, 0.8); border-color: rgb(209, 250, 229); }
+
+    .legend-group { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-weight: 600; color: rgb(71, 85, 105); margin-left: auto; font-size: 13px; }
+    .legend-badge { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 8px; border: 1px solid; }
+    .badge-blue { background-color: rgb(219, 234, 254); border-color: rgb(147, 197, 253); }
+    .badge-emerald { background-color: rgb(209, 250, 229); border-color: rgb(110, 231, 183); }
+    .badge-slate { background-color: rgb(241, 245, 249); border-color: rgba(226, 232, 240, 0.6); }
+
+    /* 핑(Ping) 애니메이션 점 */
+    .ping-wrapper { position: relative; display: flex; height: 12px; width: 12px; }
+    .ping-wrapper-sm { position: relative; display: flex; height: 10px; width: 10px; flex-shrink: 0; }
+    .ping-bg-blue { position: absolute; display: inline-flex; height: 100%; width: 100%; border-radius: 9999px; background-color: rgb(96, 165, 250); opacity: 0.75; }
+    .ping-dot-blue { position: relative; display: inline-flex; border-radius: 9999px; height: 100%; width: 100%; background-color: rgb(59, 130, 246); }
+    .ping-bg-darkblue { position: absolute; display: inline-flex; height: 100%; width: 100%; border-radius: 9999px; background-color: rgb(59, 130, 246); opacity: 0.75; }
+    .ping-dot-darkblue { position: relative; display: inline-flex; border-radius: 9999px; height: 100%; width: 100%; background-color: rgb(29, 78, 216); }
+
+    /* 테이블 스타일 */
+    .table-container { overflow-x: auto; width: 100%; }
+    .main-table { width: 100%; text-align: center; border-collapse: collapse; min-width: 1250px; font-size: 14px; }
+    .table-head-row {
+      background-color: rgba(241, 245, 249, 0.9);
+      border-bottom: 1px solid rgb(226, 232, 240);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgb(51, 65, 85);
+      font-size: 13px;
+    }
+    .table-head-row th { padding: 14px 4px; text-align: center; }
+    .col-name { padding: 14px 12px !important; width: 144px; white-space: nowrap; }
+    .col-stage { width: 80px; }
+    .col-stat { padding: 14px 8px !important; width: 96px; white-space: nowrap; }
+    .col-time { padding: 14px 8px !important; width: 160px; white-space: nowrap; }
+    .col-action { padding: 14px 8px !important; width: 64px; white-space: nowrap; }
+
+    /* 테이블 행 및 데이터 Cell 박스 */
+    .student-row { border-bottom: 1px solid rgb(241, 245, 249); }
+    .stage-cell { padding: 4px 6px; }
+    .stage-box {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 44px; border-radius: 12px; padding: 0 4px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .stage-box-active { background-color: rgb(219, 234, 254); border: 1px solid rgb(96, 165, 250); }
+    .stage-box-cleared { background-color: rgb(209, 250, 229); border: 1px solid rgb(110, 231, 183); color: rgb(2, 44, 34); }
+    .stage-box-viewed { background-color: rgb(241, 245, 249); border: 1px solid rgba(226, 232, 240, 0.8); color: rgb(71, 85, 105); box-shadow: none; }
+    .stage-box-empty { display: flex; align-items: center; justify-content: center; height: 44px; font-weight: 300; color: rgb(203, 213, 225); font-size: 14px; }
+
+    .stats-badge { font-weight: 800; line-height: 1; display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 11px; }
+
+    /* 구분선 행 */
+    .divider-row {
+      background-color: rgba(238, 242, 255, 0.8);
+      border-top: 1px solid rgba(199, 210, 254, 0.8);
+      border-bottom: 1px solid rgba(199, 210, 254, 0.8);
+    }
+    .divider-text-box { display: flex; align-items: center; justify-content: flex-start; }
+    .divider-btn { cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+    .btn-remove-divider { padding: 4px; color: rgb(129, 140, 248); background: transparent; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .btn-remove-divider:hover { color: rgb(225, 29, 72); background-color: rgb(255, 241, 242); }
+
+    /* 시간 표시 */
+    .time-box { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.25; gap: 2px; }
+    .time-start { color: rgb(5, 150, 105); font-weight: bold; font-size: 12px; }
+    .time-end-online { color: rgb(37, 99, 235); font-weight: bold; font-size: 12px; }
+    .time-end-offline { color: rgb(15, 23, 42); font-weight: 500; font-size: 12px; }
+
+    /* 삭제 버튼 및 모달 공통 */
+    .btn-delete-icon { padding: 6px; color: rgb(203, 213, 225); background: transparent; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s, color 0.2s; }
+    .btn-delete-icon:hover { color: rgb(225, 29, 72); background-color: rgb(255, 241, 242); }
+
+    .modal-overlay {
+      position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+      background-color: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      display: flex; justify-content: center; align-items: center; padding: 16px;
+    }
+    .modal-card {
+      background-color: rgb(255, 255, 255);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 384px;
+      width: 100%;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border: 1px solid rgb(241, 245, 249);
+    }
+    .modal-btn-group { display: flex; gap: 8px; }
+    .btn-modal-cancel { flex: 1; padding: 10px 0; background-color: rgb(241, 245, 249); color: rgb(51, 65, 85); font-weight: 700; border-radius: 12px; border: none; font-size: 14px; cursor: pointer; }
+    .btn-modal-submit { flex: 1; padding: 10px 0; background-color: rgb(79, 70, 229); color: rgb(255, 255, 255); font-weight: 700; border-radius: 12px; border: none; font-size: 14px; cursor: pointer; }
+    .btn-modal-delete { flex: 1; padding: 10px 0; background-color: rgb(225, 29, 72); color: rgb(255, 255, 255); font-weight: 700; border-radius: 12px; border: none; font-size: 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+    
+    <!-- Header -->
+    <div class="card header-card">
+      <div class="header-title-box">
+        <div class="header-icon">
+          <i class="ph ph-squares-four" style="font-size: 28px;"></i>
+        </div>
+        <div>
+          <h1 class="header-title">대시보드(e101)</h1>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button onclick="toggleAnonymize()" id="anon-btn" class="btn btn-slate">
+          <i class="ph ph-eye-slash" style="font-size: 18px;"></i> 익명 모드
+        </button>
+        <button onclick="openDividerModal()" class="btn btn-indigo">
+          <i class="ph ph-plus" style="font-size: 18px;"></i> 구분선 추가
+        </button>
+        <button onclick="toggleHideAll()" id="hide-all-btn" class="btn btn-amber">
+          <i class="ph ph-eye-slash" style="font-size: 18px;"></i> 자료 숨김
+        </button>
+        <button onclick="fetchProgress()" class="btn btn-emerald">
+          <i class="ph ph-arrows-clockwise" style="font-size: 18px;"></i> 새로고침
+        </button>
+      </div>
+    </div>
+
+    <!-- 접속자 정보 & 범례 바 -->
+    <div class="card legend-card">
+      <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+        <div class="stat-box stat-blue">
+          <span class="ping-wrapper">
+            <span class="ping-bg-blue animate-ping"></span>
+            <span class="ping-dot-blue"></span>
+          </span>
+          <span style="color: rgb(30, 58, 138); font-size: 13px; font-weight: 700;">접속 중:</span>
+          <span id="active-students" style="color: rgb(37, 99, 235); font-size: 15px; font-weight: 900;">0명</span>
+        </div>
+        <div class="stat-box stat-emerald">
+          <i class="ph ph-users" style="color: rgb(16, 185, 129); font-size: 18px;"></i>
+          <span style="color: rgb(6, 78, 59); font-size: 13px; font-weight: 700;">총 등록:</span>
+          <span id="total-students" style="color: rgb(5, 150, 105); font-size: 15px; font-weight: 900;">0명</span>
+        </div>
+      </div>
+
+      <div class="legend-group">
+        <span style="color: rgb(148, 163, 184); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">상태 범례:</span>
+        <div class="legend-badge badge-blue">
+          <span class="ping-wrapper-sm">
+            <span class="ping-bg-darkblue animate-ping"></span>
+            <span class="ping-dot-darkblue"></span>
+          </span>
+          <span style="color: rgb(23, 37, 84); font-size: 13px; font-weight: 900;">현재 접속중</span>
+        </div>
+        <div class="legend-badge badge-emerald">
+          <span style="color: rgb(6, 95, 70); font-size: 14px; font-weight: 900;">✓</span>
+          <span style="color: rgb(2, 44, 34); font-size: 13px; font-weight: 900;">단계 완료</span>
+        </div>
+        <div class="legend-badge badge-slate">
+          <i class="ph ph-circle-fill" style="font-size: 9px; color: rgb(148, 163, 184);"></i>
+          <span style="color: rgb(51, 65, 85); font-size: 13px; font-weight: 700;">열람함 / 진행중</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; padding: 0 4px; color: rgb(148, 163, 184);">
+          <span style="font-size: 14px; font-weight: 300;">-</span>
+          <span style="color: rgb(100, 116, 139); font-size: 13px; font-weight: 500;">미도달</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Table -->
+    <div class="card table-container">
+      <table class="main-table">
+        <thead>
+          <tr class="table-head-row">
+            <th class="col-name">학생 성명</th>
+            <th class="col-stage">1단계</th>
+            <th class="col-stage">2단계</th>
+            <th class="col-stage">3단계</th>
+            <th class="col-stage">4단계</th>
+            <th class="col-stage">5단계</th>
+            <th class="col-stage">6단계</th>
+            <th class="col-stage">7단계</th>
+            <th class="col-stage">8단계</th>
+            <th class="col-stage">9단계</th>
+            <th class="col-stage">10단계</th>
+            <th class="col-stat">총 힌트</th>
+            <th class="col-stat">총 오답</th>
+            <th class="col-time">접속 시간</th>
+            <th class="col-action">삭제</th>
+          </tr>
+        </thead>
+        <tbody id="progress-table-body">
+          <!-- 동적 행 생성 -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 구분선 추가 모달 -->
+  <div id="divider-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-weight: 700; display: flex; align-items: center; gap: 8px; margin: 0; color: rgb(15, 23, 42); font-size: 18px;">
+          <i class="ph ph-rows" style="color: rgb(79, 70, 229); font-size: 20px;"></i> 구분선 추가
+        </h3>
+        <button onclick="closeDividerModal()" style="color: rgb(148, 163, 184); background: none; border: none; cursor: pointer;"><i class="ph ph-x" style="font-size: 20px;"></i></button>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-weight: 700; margin-bottom: 8px; color: rgb(71, 85, 105); font-size: 13px;">구분선 명칭 입력</label>
+        <input type="text" id="divider-text-input" placeholder="예: 1모둠 / A그룹" style="width: 100%; padding: 12px; border: 1px solid rgb(226, 232, 240); border-radius: 12px; font-weight: 500; font-size: 14px; outline: none;">
+      </div>
+      <div class="modal-btn-group">
+        <button onclick="closeDividerModal()" class="btn-modal-cancel">취소</button>
+        <button onclick="executeAddDivider()" class="btn-modal-submit">추가하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 삭제 확인 모달 -->
+  <div id="delete-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 48px; height: 48px; background-color: rgb(254, 226, 226); color: rgb(225, 29, 72); border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+          <i class="ph ph-trash" style="font-size: 24px;"></i>
+        </div>
+        <h3 style="font-weight: 700; margin: 0 0 4px 0; color: rgb(15, 23, 42); font-size: 18px;">학생 데이터 삭제</h3>
+        <p style="font-weight: 500; margin: 0; color: rgb(100, 116, 139); font-size: 13px;"><span id="delete-target-name" style="font-weight: 800; color: rgb(30, 41, 59);"></span> 학생의 모든 기록을 완전 삭제하시겠습니까?</p>
+      </div>
+      <div class="modal-btn-group">
+        <button onclick="closeDeleteModal()" class="btn-modal-cancel">취소</button>
+        <button onclick="executeDelete()" class="btn-modal-delete">삭제하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://whhmnutvzyqsnbffohqj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndoaG1udXR2enlxc25iZmZvaHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NTQ2OTYsImV4cCI6MjEwMjQzMDY5Nn0.yMVCwhuiJs_rtuf51zQty3yJfNXMHF2Oauy8y08_2Gc';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let isAnonymized = false;
+    let isHideAll = false;
+    let deleteTargetId = null;
+    let deleteTargetName = null;
+    let customRowOrder = [];
+    let isConfigLoaded = false;
+
+    function formatTime(isoString) {
+      if (!isoString) return "-";
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return "-";
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const h = String(date.getHours()).padStart(2, '0');
+      const m = String(date.getMinutes()).padStart(2, '0');
+      return `${month}/${day} ${h}:${m}`;
+    }
+
+    async function saveConfigToDB() {
+      try {
+        localStorage.setItem('e101_dashboard_layout', JSON.stringify({ customRowOrder, isHideAll }));
+      } catch(e) { console.error("LocalStorage 저장 실패:", e); }
+
+      try {
+        await _supabase
+          .from('e101_config')
+          .upsert({ id: 'dashboard_layout', config_value: { customRowOrder, isHideAll }, updated_at: new Date().toISOString() });
+      } catch (err) { console.error("Supabase 설정 저장 실패:", err); }
+    }
+
+    async function loadConfigFromDB() {
+      try {
+        const localData = localStorage.getItem('e101_dashboard_layout');
+        if (localData) {
+          const parsed = JSON.parse(localData);
+          if (parsed && parsed.customRowOrder) {
+            customRowOrder = parsed.customRowOrder;
+            isHideAll = !!parsed.isHideAll;
+          }
+        }
+      } catch(e) { console.error("LocalStorage 로드 실패:", e); }
+
+      try {
+        const { data } = await _supabase
+          .from('e101_config')
+          .select('config_value')
+          .eq('id', 'dashboard_layout')
+          .single();
+
+        if (data && data.config_value && data.config_value.customRowOrder) {
+          customRowOrder = data.config_value.customRowOrder;
+          isHideAll = !!data.config_value.isHideAll;
+        }
+      } catch (err) {
+        console.log("기본 레이아웃 설정을 사용합니다.");
+      } finally {
+        isConfigLoaded = true;
+      }
+    }
+
+    function toggleHideAll() {
+      isHideAll = !isHideAll;
+      updateHideAllBtnUI();
+      saveConfigToDB();
+      fetchProgress();
+    }
+
+    function updateHideAllBtnUI() {
+      const btn = document.getElementById("hide-all-btn");
+      if (isHideAll) {
+        btn.className = "btn btn-amber-active";
+        btn.innerHTML = `<i class="ph ph-eye" style="font-size: 18px;"></i> 자료 보임`;
+      } else {
+        btn.className = "btn btn-amber";
+        btn.innerHTML = `<i class="ph ph-eye-slash" style="font-size: 18px;"></i> 자료 숨김`;
+      }
+    }
+
+    function toggleAnonymize() {
+      isAnonymized = !isAnonymized;
+      const btn = document.getElementById("anon-btn");
+      if (isAnonymized) {
+        btn.className = "btn btn-indigo-active";
+        btn.innerHTML = `<i class="ph ph-eye" style="font-size: 18px;"></i> 실명 보기`;
+      } else {
+        btn.className = "btn btn-slate";
+        btn.innerHTML = `<i class="ph ph-eye-slash" style="font-size: 18px;"></i> 익명 모드`;
+      }
+      fetchProgress();
+    }
+
+    function openDividerModal() {
+      document.getElementById("divider-text-input").value = "";
+      document.getElementById("divider-modal").classList.remove("hidden");
+    }
+
+    function closeDividerModal() {
+      document.getElementById("divider-modal").classList.add("hidden");
+    }
+
+    function executeAddDivider() {
+      const text = document.getElementById("divider-text-input").value.trim();
+      if (text) {
+        const id = 'divider-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+        customRowOrder.unshift({ type: 'divider', id, text });
+        closeDividerModal();
+        saveConfigToDB();
+        fetchProgress();
+      }
+    }
+
+    function editDivider(id) {
+      const item = customRowOrder.find(d => d.id === id);
+      if (!item) return;
+      const newText = prompt("구분선 문구를 수정하세요:", item.text);
+      if (newText !== null && newText.trim() !== "") {
+        item.text = newText.trim();
+        saveConfigToDB();
+        fetchProgress();
+      }
+    }
+
+    function removeDivider(id) {
+      customRowOrder = customRowOrder.filter(d => d.id !== id);
+      saveConfigToDB();
+      fetchProgress();
+    }
+
+    async function fetchProgress() {
+      if (!isConfigLoaded) await loadConfigFromDB();
+
+      const { data, error } = await _supabase
+        .from('e101')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.error("데이터 로드 오류:", error.message);
+        return;
+      }
+
+      const tbody = document.getElementById("progress-table-body");
+      tbody.innerHTML = "";
+
+      let activeCount = 0;
+      const now = new Date();
+
+      const studentMap = {};
+
+      data.forEach(item => {
+        const studentKey = String(item.id || item.student_name);
+        studentMap[studentKey] = item;
+      });
+
+      data.forEach(item => {
+        const studentKey = String(item.id || item.student_name);
+        const exists = customRowOrder.some(r => r.type === 'student' && String(r.id) === studentKey);
+        if (!exists) {
+          customRowOrder.unshift({ type: 'student', id: studentKey });
+        }
+      });
+
+      customRowOrder = customRowOrder.filter(r => r.type === 'divider' || (r.type === 'student' && studentMap[String(r.id)]));
+
+      let studentCounter = 0;
+      let hasHitFirstDivider = false;
+
+      customRowOrder.forEach(rowInfo => {
+        let isHidden = false;
+
+        if (rowInfo.type === 'divider') {
+          if (isHideAll && !hasHitFirstDivider) hasHitFirstDivider = true;
+          if (hasHitFirstDivider) isHidden = true;
+
+          const tr = createDividerRow(rowInfo, isHidden);
+          tbody.appendChild(tr);
+
+        } else {
+          if (hasHitFirstDivider && isHideAll) isHidden = true;
+
+          const item = studentMap[String(rowInfo.id)];
+          if (!item) return;
+
+          studentCounter++;
+          const hintObj = item.hint_usage || {};
+          const wrongObj = item.stage_wrong_count || {}; 
+          const viewedStages = item.stage_views || [];  
+          const clearedArr = item.cleared_stages || [];
+          const currentStage = item.current_stage || 1;
+          
+          const lastUpdated = new Date(item.updated_at);
+
+          const isExplicitOffline = (item.is_online === false) || (item.status === 'offline');
+          const isOnline = !isExplicitOffline && ((now - lastUpdated) < (3 * 60 * 1000));
+          
+          if (isOnline) activeCount++;
+
+          const studentHints = Object.values(hintObj).reduce((a, b) => a + Number(b), 0);
+          const displayName = isAnonymized ? `학생 ${studentCounter}` : item.student_name;
+
+          const row = document.createElement("tr");
+          row.className = `student-row draggable-row ${isHidden ? 'hidden' : ''}`;
+          row.draggable = true;
+          row.dataset.type = "student";
+          row.dataset.id = String(item.id || item.student_name);
+
+          let stageCellsHtml = "";
+          for (let stage = 1; stage <= 10; stage++) {
+            const isCleared = clearedArr.includes(stage);
+            const isCurrent = (stage === currentStage);
+            const hintsForStage = Number(hintObj[stage] || 0);
+            const wrongsForStage = Number(wrongObj[stage] || 0);
+            const isViewed = viewedStages.includes(stage) || hintsForStage > 0 || wrongsForStage > 0;
+
+            const hintText = `💡${hintsForStage}`;
+            const wrongText = `❌${wrongsForStage}`;
+            
+            const hintColor = hintsForStage > 0 ? 'color: rgb(17, 94, 89); font-weight: 900;' : 'color: rgb(203, 213, 225);';
+            const wrongColor = wrongsForStage > 0 ? 'color: rgb(225, 29, 72); font-weight: 900;' : 'color: rgb(203, 213, 225);';
+
+            const statsBadge = `<span class="stats-badge">
+              <span style="${hintColor}">${hintText}</span>
+              <span style="${wrongColor}">${wrongText}</span>
+            </span>`;
+
+            if (isCurrent && isOnline) {
+              stageCellsHtml += `
+                <td class="stage-cell">
+                  <div class="stage-box stage-box-active">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                      <span class="ping-wrapper-sm">
+                        <span class="ping-bg-darkblue animate-ping"></span>
+                        <span class="ping-dot-darkblue"></span>
+                      </span>
+                      ${isCleared ? '<span style="font-weight: 900; line-height: 1; color: rgb(6, 95, 70); font-size: 13px;">✓</span>' : ''}
+                    </div>
+                    ${statsBadge}
+                  </div>
+                </td>`;
+            } else if (isCleared) {
+              stageCellsHtml += `
+                <td class="stage-cell">
+                  <div class="stage-box stage-box-cleared">
+                    <span style="font-weight: 900; line-height: 1; color: rgb(6, 95, 70); font-size: 13px;">✓</span>
+                    ${statsBadge}
+                  </div>
+                </td>`;
+            } else if (isCurrent || isViewed) {
+              stageCellsHtml += `
+                <td class="stage-cell">
+                  <div class="stage-box stage-box-viewed">
+                    <i class="ph ph-circle-fill" style="font-size: 8px; color: rgb(148, 163, 184); flex-shrink: 0;"></i>
+                    ${statsBadge}
+                  </div>
+                </td>`;
+            } else {
+              stageCellsHtml += `
+                <td class="stage-cell">
+                  <div class="stage-box-empty">-</div>
+                </td>`;
+            }
+          }
+
+          const nameStyle = isOnline 
+            ? "color: rgb(15, 23, 42); font-weight: bold;" 
+            : "color: rgb(148, 163, 184); font-weight: 500; font-style: italic;";
+
+          const startTime = formatTime(item.start_time || item.created_at);
+          const endTime = formatTime(item.ended_at || item.updated_at);
+
+          const endDisplay = isOnline ? "진행" : endTime;
+          const endClass = isOnline ? "time-end-online" : "time-end-offline";
+
+          row.innerHTML = `
+            <td style="padding: 12px 12px; text-align: center; white-space: nowrap; font-size: 14px; ${nameStyle}">${displayName}</td>
+            ${stageCellsHtml}
+            <td style="padding: 12px 8px; text-align: center; font-weight: 800; white-space: nowrap; color: rgb(13, 148, 136); font-size: 14px;">${studentHints}회</td>
+            <td style="padding: 12px 8px; text-align: center; font-weight: 800; white-space: nowrap; color: rgb(244, 63, 94); font-size: 14px;">${item.total_wrong_count || 0}회</td>
+            <td style="padding: 8px 8px; text-align: center; font-family: monospace; white-space: nowrap;">
+              <div class="time-box">
+                <span class="time-start">${startTime}</span>
+                <span class="${endClass}">${endDisplay}</span>
+              </div>
+            </td>
+            <td style="padding: 12px 8px; text-align: center;" onclick="event.stopPropagation()">
+              <button onclick="openDeleteModal('${item.id}', '${item.student_name}')" class="btn-delete-icon" title="데이터 삭제">
+                <i class="ph ph-trash" style="font-size: 18px;"></i>
+              </button>
+            </td>
+          `;
+
+          row.addEventListener("dragstart", handleDragStart);
+          row.addEventListener("dragend", handleDragEnd);
+
+          tbody.appendChild(row);
+        }
+      });
+
+      document.getElementById("active-students").textContent = `${activeCount}명`;
+      document.getElementById("total-students").textContent = `${data.length}명`;
+      
+      updateHideAllBtnUI();
+    }
+
+    function createDividerRow(divider, isHidden) {
+      const tr = document.createElement("tr");
+      tr.className = `divider-row draggable-row ${isHidden ? 'hidden' : ''}`;
+      tr.draggable = true;
+      tr.dataset.type = "divider";
+      tr.dataset.id = divider.id;
+
+      tr.innerHTML = `
+        <td style="padding: 10px 12px;"></td>
+        <td colspan="13" style="padding: 10px 8px; text-align: left; font-weight: 800; color: rgb(49, 46, 129); font-size: 14px;">
+          <div class="divider-text-box">
+            <span onclick="editDivider('${divider.id}'); event.stopPropagation();" class="divider-btn" title="클릭하여 명칭 수정">
+              <span>➖ ${divider.text} ➖</span>
+            </span>
+          </div>
+        </td>
+        <td style="padding: 10px 8px; text-align: center;" onclick="event.stopPropagation()">
+          <button onclick="removeDivider('${divider.id}')" class="btn-remove-divider" title="구분선 삭제">
+            <i class="ph ph-x" style="font-size: 14px; font-weight: 900;"></i>
+          </button>
+        </td>
+      `;
+
+      tr.addEventListener("dragstart", handleDragStart);
+      tr.addEventListener("dragend", handleDragEnd);
+
+      return tr;
+    }
+
+    let draggedRow = null;
+
+    function handleDragStart(e) {
+      draggedRow = this;
+      this.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    }
+
+    function handleDragEnd() {
+      this.classList.remove("dragging");
+      draggedRow = null;
+      updateCustomRowOrder();
+    }
+
+    const tbody = document.getElementById("progress-table-body");
+    tbody.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const afterElement = getDragAfterElement(tbody, e.clientY);
+      if (draggedRow) {
+        if (afterElement == null) tbody.appendChild(draggedRow);
+        else tbody.insertBefore(draggedRow, afterElement);
+      }
+    });
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll(".draggable-row:not(.dragging)")];
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function updateCustomRowOrder() {
+      const rows = Array.from(tbody.querySelectorAll("tr.draggable-row"));
+      const newOrder = [];
+      const seenKeys = new Set();
+
+      rows.forEach(row => {
+        const type = row.dataset.type;
+        const id = row.dataset.id;
+        const key = `${type}_${id}`;
+
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          if (type === 'divider') {
+            const item = customRowOrder.find(d => d.type === 'divider' && d.id === id);
+            if (item) newOrder.push({ ...item });
+          } else if (type === 'student') {
+            newOrder.push({ type: 'student', id: id });
+          }
+        }
+      });
+
+      customRowOrder = newOrder;
+      saveConfigToDB();
+    }
+
+    function openDeleteModal(studentId, studentName) {
+      deleteTargetId = studentId;
+      deleteTargetName = studentName;
+      document.getElementById("delete-target-name").textContent = studentName;
+      document.getElementById("delete-modal").classList.remove("hidden");
+    }
+
+    function closeDeleteModal() {
+      deleteTargetId = null;
+      deleteTargetName = null;
+      document.getElementById("delete-modal").classList.add("hidden");
+    }
+
+    async function executeDelete() {
+      if (!deleteTargetId) return;
+
+      const { error } = await _supabase
+        .from('e101')
+        .delete()
+        .eq('id', deleteTargetId);
+
+      if (error) {
+        alert("삭제 중 오류가 발생했습니다: " + error.message);
+      } else {
+        closeDeleteModal();
+        fetchProgress();
+      }
+    }
+
+    function setupRealtimeSubscription() {
+      _supabase
+        .channel('public:e101')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'e101' }, () => {
+          fetchProgress();
+        })
+        .subscribe();
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadConfigFromDB();
+      fetchProgress();
+      setupRealtimeSubscription();
+      setInterval(fetchProgress, 3000);
+    });
+  </script>
+</body>
+</html>

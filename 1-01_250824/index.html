@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>EscapeRoom</title>
+      <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-VHD0QPH39L"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-VHD0QPH39L');
+  </script>
+
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 :root {
@@ -22,29 +32,66 @@ body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
   margin: 0;
-  padding: 15px 10px; /* 모바일 여백 축소 */
+  padding: 15px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow-x: hidden;
 }
 
-/* 메인 컨테이너 반응형 설정 */
+/* 성명 입력 모달 오버레이 */
+#name-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px); z-index: 30000; display: flex;
+  justify-content: center; align-items: center; padding: 20px;
+}
+.name-card {
+  background: #fff; padding: 30px; border-radius: 24px;
+  max-width: 360px; width: 100%; text-align: center; box-shadow: 0 20px 25px rgba(0,0,0,0.2);
+}
+
 .container-fixed {
   width: 100%;
   max-width: 800px;
   background: var(--card-bg);
   border-radius: 20px;
-  padding: 20px; /* 모바일 패딩 축소 */
+  padding: 20px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.05);
   margin-bottom: 20px;
 }
 
+/* 헤더 타이틀 및 성명 배지 영역 */
+.header-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 h1 { 
-  margin: 0 0 20px; 
-  font-size: clamp(20px, 5vw, 32px); /* 반응형 폰트 */
-  text-align: center; 
+  margin: 0; 
+  font-size: clamp(18px, 4.5vw, 28px);
   font-weight: 800; 
+}
+
+.header-user-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  border: 1px solid #c7d2fe;
+}
+.header-user-badge:hover {
+  background: #c7d2fe;
 }
 
 .quiz-question {
@@ -53,20 +100,19 @@ h1 {
   text-align: center;
   margin-bottom: 15px;
   color: #444;
-  word-break: keep-all; /* 한글 줄바꿈 최적화 */
+  word-break: keep-all;
 }
 
-/* 단계 버튼 그리드 모바일 최적화 */
 .stage-button-container {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px; /* 간격 축소 */
+  gap: 8px;
   width: 100%;
 }
 
 .stage-button {
   width: 100%;
-  padding: 12px 2px; /* 터치 영역 확보 */
+  padding: 12px 2px;
   border-radius: 10px;
   border: 1px solid #e9ecef;
   background: #f8f9fa;
@@ -84,11 +130,14 @@ h1 {
 
 .status-bar { 
   display: flex; 
-  justify-content: flex-end; 
+  justify-content: space-between;
+  align-items: center;
   margin-top: 15px; 
   gap: 8px; 
-  flex-wrap: wrap; /* 배지가 넘칠 경우 줄바꿈 */
+  flex-wrap: wrap;
 }
+
+.user-tag { font-size: 14px; font-weight: bold; color: #495057; }
 
 .badge { 
   padding: 6px 12px; 
@@ -102,7 +151,7 @@ h1 {
 
 .quiz-image { 
   width: 100%; 
-  max-height: 50vh; /* 모바일에서 이미지가 너무 길어지지 않게 방지 */
+  max-height: 50vh; 
   border-radius: 12px; 
   display: block; 
   margin: 0 auto; 
@@ -111,7 +160,6 @@ h1 {
   object-fit: contain;
 }
 
-/* 입력 영역 모바일 배치 */
 .input-group { 
   margin: 20px 0; 
   display: flex; 
@@ -121,12 +169,12 @@ h1 {
 #answer { 
   flex: 1; 
   max-width: 180px; 
-  font-size: 18px; /* 모바일 입력창 확대 방지 최소 16px 이상 */
+  font-size: 18px; 
   padding: 12px; 
   border-radius: 12px; 
   border: 2px solid #dee2e6; 
   text-align: center; 
-  appearance: none; /* iOS 기본 스타일 제거 */
+  appearance: none; 
 }
 
 .btn-submit {
@@ -161,7 +209,6 @@ h1 {
   line-height: 1.5;
 }
 
-/* 모달 및 팝업 최적화 */
 .success-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7);
   backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center; z-index: 10000;
@@ -182,7 +229,6 @@ h1 {
 }
 #final-success img { width: 100%; height: 100%; object-fit: contain; }
 
-/* 큰 화면(데스크탑) 대응 */
 @media (min-width: 800px) {
   .container-fixed { padding: 35px; }
   .stage-button { padding: 18px 5px; font-size: 18px; }
@@ -193,19 +239,47 @@ h1 {
 </head>
 <body>
 
-<div class="container-fixed">
-  <h1>EscapeRoom - 250824</h1>
-  <div id="stage-buttons" class="stage-button-container"></div>
-  <div class="status-bar">
-    <div id="hint-count-badge" class="badge hint-badge">힌트 횟수: <span id="total-hint-count">0</span></div>
-    <div class="badge wrong-badge">오답 횟수: <span id="wrong-count">0</span></div>
+<!-- 접속용 성명 입력 창 -->
+<div id="name-overlay">
+  <div class="name-card">
+    <h2 style="margin:0 0 10px; font-size: 22px;">입장 확인</h2>
+    <p style="font-size: 14px; color: #64748b; margin-bottom: 20px;">성명 또는 코드를 입력해주세요.</p>
+    <input type="text" id="user-name-input" placeholder="성명 입력" style="width:100%; padding: 14px; border-radius:12px; border:2px solid #cbd5e1; text-align:center; font-size:18px; font-weight:bold; margin-bottom:15px; outline:none;">
+    <button onclick="handleLogin()" class="btn-submit" style="width:100%;">확인</button>
   </div>
 </div>
 
-<div id="puzzle" class="container-fixed"></div>
+<!-- 본래 방탈출 레이아웃 -->
+<div id="main-game" style="width:100%; max-width:800px; display:none;">
+  <div class="container-fixed">
+    <div class="header-title-bar">
+      <h1>EscapeRoom - 250824</h1>
+      <!-- 오른쪽에 표시되는 성명 및 로그아웃 버튼 -->
+      <div id="header-user-tag" onclick="openLogoutModal()" class="header-user-badge" title="클릭하여 로그아웃">
+        👤 <span id="header-student-name">-</span>
+        <span style="font-size: 11px; opacity: 0.75; margin-left:2px;">(로그아웃)</span>
+      </div>
+    </div>
+    
+    <div id="stage-buttons" class="stage-button-container"></div>
+    <div class="status-bar">
+      <div id="user-display" class="user-tag">학생: -</div>
+      <div style="display:flex; gap:8px;">
+        <div id="hint-count-badge" class="badge hint-badge">힌트 횟수: <span id="total-hint-count">0</span></div>
+        <div class="badge wrong-badge">오답 횟수: <span id="wrong-count">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="puzzle" class="container-fixed"></div>
+</div>
 
 <script>
-// 이미지 우클릭 방지
+// Supabase 설정
+const SUPABASE_URL = 'https://whhmnutvzyqsnbffohqj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndoaG1udXR2enlxc25iZmZvaHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NTQ2OTYsImV4cCI6MjEwMjQzMDY5Nn0.yMVCwhuiJs_rtuf51zQty3yJfNXMHF2Oauy8y08_2Gc';
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 document.addEventListener("contextmenu", e => e.preventDefault());
 
 const puzzleData = [
@@ -221,12 +295,243 @@ const puzzleData = [
   {stage:10, question:"?는 무엇일까요?", image:"p10.png", answer:"10000", inputType:"number", hints:[{type:'text',content:'1은 -'},{type:'text',content:'10은 +'},{type:'text',content:'한글로'}]}
 ];
 
+let studentName = "";
 let currentStage = 1;
 let totalWrongCount = 0;
 let imageZoomOverlay = null;
-const clearedStages = new Set();
-const hintUsage = {};
-const stageState = {};
+let clearedStages = new Set();
+let hintUsage = {};
+let stageWrongCount = {};
+let visitedStages = new Set([1]);
+let stageState = {};
+let sessionStartTime = null;
+
+// --- 10분 세션 관리 유틸리티 ---
+const SESSION_KEY_NAME = 'escaperoom_student_name';
+const SESSION_KEY_TIME = 'escaperoom_login_time';
+const TEN_MINUTES_MS = 10 * 60 * 1000; // 10분(밀리초)
+
+function saveSession(name) {
+  localStorage.setItem(SESSION_KEY_NAME, name);
+  localStorage.setItem(SESSION_KEY_TIME, Date.now().toString());
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY_NAME);
+  localStorage.removeItem(SESSION_KEY_TIME);
+}
+
+// 게임 상태 완벽 초기화 함수 (새로운 사용자 로그인/로그아웃 시 호출)
+function resetGameState() {
+  currentStage = 1;
+  totalWrongCount = 0;
+  clearedStages = new Set();
+  hintUsage = {};
+  stageWrongCount = {};
+  visitedStages = new Set([1]);
+  stageState = {};
+  sessionStartTime = null;
+}
+
+function checkAutoLogin() {
+  const savedName = localStorage.getItem(SESSION_KEY_NAME);
+  const savedTime = localStorage.getItem(SESSION_KEY_TIME);
+
+  if (savedName && savedTime) {
+    const elapsed = Date.now() - parseInt(savedTime, 10);
+    if (elapsed < TEN_MINUTES_MS) {
+      studentName = savedName;
+      updateUserDisplay();
+      loadProgressFromDB();
+      $("#name-overlay").hide();
+      $("#main-game").show();
+      syncProgressWithDB(true);
+      return true;
+    } else {
+      clearSession(); // 10분 경과 시 만료 처리
+    }
+  }
+  return false;
+}
+
+function updateUserDisplay() {
+  $("#user-display").text(`학생: ${studentName}`);
+  $("#header-student-name").text(studentName);
+}
+
+// 로그인 핸들러
+async function handleLogin() {
+  const input = $("#user-name-input").val().trim();
+  if (!input) {
+    alert("성명을 입력해 주세요.");
+    return;
+  }
+
+  if (input === "58009859" || input === "관리자") {
+    window.location.href = "dashboard.html";
+    return;
+  }
+
+  studentName = input;
+  saveSession(studentName); // 10분 유지 세션 저장
+  updateUserDisplay();
+
+  // 로그인 시 이전 기기 메모리 정보 초기화
+  resetGameState();
+  sessionStartTime = new Date().toISOString(); // 신규 로그인 시간 생성
+
+  await loadProgressFromDB();
+
+  $("#name-overlay").fadeOut(300, () => {
+    $("#main-game").fadeIn(300);
+  });
+
+  syncProgressWithDB(true);
+}
+
+// 로그아웃 모달 및 처리
+function openLogoutModal() {
+  const modal = $(`
+    <div class="success-overlay" id="logoutOverlay">
+      <div class="success-modal" style="border-top: 5px solid #6366f1;">
+        <h3 style="margin-top:0; color:#1e293b; font-size:20px;">로그아웃</h3>
+        <p style="font-size:15px; color:#64748b; margin: 15px 0;">
+          <b>${studentName}</b> 학생 계정에서 로그아웃하고<br>새로운 성명으로 입력하시겠습니까?
+        </p>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button id="cancelLogoutBtn" class="btn-submit" style="background:#94a3b8; flex:1; padding:10px 0; font-size:16px;">취소</button>
+          <button id="confirmLogoutBtn" class="btn-submit" style="background:#6366f1; flex:1; padding:10px 0; font-size:16px;">로그아웃</button>
+        </div>
+      </div>
+    </div>
+  `);
+  $("body").append(modal);
+
+  $("#cancelLogoutBtn").click(() => $("#logoutOverlay").remove());
+  $("#confirmLogoutBtn").click(executeLogout);
+}
+
+// 로그아웃 실행
+async function executeLogout() {
+  if (studentName) {
+    // 대시보드에 접속 해제(is_online: false) 및 종료 시간 기록
+    await syncProgressWithDB(false);
+  }
+
+  // 세션 및 메모리 상태 초기화
+  clearSession();
+  studentName = "";
+  resetGameState();
+
+  // UI 화면 전환
+  $("#logoutOverlay").remove();
+  $("#main-game").fadeOut(300, () => {
+    $("#user-name-input").val('');
+    $("#name-overlay").fadeIn(300);
+  });
+}
+
+$('#user-name-input').on('keypress', function(e) {
+  if (e.which === 13) handleLogin();
+});
+
+// DB 기록 불러오기
+async function loadProgressFromDB() {
+  if (!studentName) return;
+
+  const { data, error } = await _supabase
+    .from('e101')
+    .select('*')
+    .eq('student_name', studentName)
+    .maybeSingle();
+
+  if (error) {
+    console.error("DB 로드 실패:", error);
+    return;
+  }
+
+  if (data) {
+    currentStage = data.current_stage || 1;
+    totalWrongCount = data.total_wrong_count || 0;
+    
+    // DB에 기존 start_time이 저장되어 있다면 사용, 없으면 현재 시간 적용
+    sessionStartTime = data.start_time || sessionStartTime || new Date().toISOString();
+
+    if (data.hint_usage) Object.assign(hintUsage, data.hint_usage);
+    if (data.stage_wrong_count) Object.assign(stageWrongCount, data.stage_wrong_count);
+
+    if (Array.isArray(data.cleared_stages)) {
+      data.cleared_stages.forEach(s => clearedStages.add(s));
+    }
+    if (Array.isArray(data.stage_views)) {
+      data.stage_views.forEach(s => visitedStages.add(s));
+    }
+    visitedStages.add(currentStage);
+  } else if (!sessionStartTime) {
+    sessionStartTime = new Date().toISOString();
+  }
+
+  updateStatusBar();
+  renderStageButtons();
+  loadPuzzle(currentStage);
+}
+
+// DB 진행도 및 접속시간 업데이트
+async function syncProgressWithDB(isOnline = true) {
+  if (!studentName) return;
+
+  if (!sessionStartTime) {
+    sessionStartTime = new Date().toISOString();
+  }
+
+  const payload = {
+    student_name: studentName,
+    current_stage: currentStage,
+    hint_usage: hintUsage,
+    total_wrong_count: totalWrongCount,
+    stage_wrong_count: stageWrongCount,
+    stage_views: Array.from(visitedStages),
+    cleared_stages: Array.from(clearedStages),
+    is_online: isOnline,
+    start_time: sessionStartTime,
+    updated_at: new Date().toISOString()
+  };
+
+  // 접속 종료 시 ended_at 기록
+  if (!isOnline) {
+    payload.ended_at = new Date().toISOString();
+  }
+
+  const { error } = await _supabase
+    .from('e101')
+    .upsert(payload, { onConflict: 'student_name' });
+
+  if (error) console.error("DB 업데이트 실패 상세:", error.message, error.details, error.hint);
+}
+
+// 브라우저/탭 닫기 감지 시 자동 종료 시간 등록
+window.addEventListener("pagehide", () => {
+  if (studentName) {
+    const url = `${SUPABASE_URL}/rest/v1/e101`;
+    const payload = {
+      student_name: studentName,
+      is_online: false,
+      ended_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(payload),
+      keepalive: true
+    });
+  }
+});
 
 function updateStatusBar() {
   const totalHints = Object.values(hintUsage).reduce((acc, curr) => acc + curr, 0);
@@ -280,7 +585,6 @@ function loadPuzzle(stage) {
   `);
 }
 
-// 1. checkAnswer 함수 수정 (팝업 호출로 변경)
 function checkAnswer() {
   const p = puzzleData.find(x => x.stage === currentStage);
   const v = $("#answer").val().trim();
@@ -290,15 +594,17 @@ function checkAnswer() {
     stageState[currentStage] = { answer: v, result: "정답!" };
     clearedStages.add(currentStage);
     renderStageButtons();
+    syncProgressWithDB(true);
     showSuccess();
   } else {
     totalWrongCount++;
+    stageWrongCount[currentStage] = (stageWrongCount[currentStage] || 0) + 1;
     updateStatusBar();
-    showFailure(); // 오답 팝업 호출
+    syncProgressWithDB(true);
+    showFailure();
   }
 }
 
-// 2. Enter 키를 지원하는 오답 팝업 함수
 function showFailure() {
   const modal = $(`
     <div class="success-overlay" id="failureOverlay">
@@ -311,22 +617,19 @@ function showFailure() {
   `);
   $("body").append(modal);
 
-  // 팝업 닫기 함수
   const closeModal = () => {
     $("#failureOverlay").remove();
-    $(document).off("keydown", handleFailureEnter); // 이벤트 리스너 제거 (중요)
-    $("#answer").focus().select(); // 다시 입력하기 편하게 포커스 및 전체 선택
+    $(document).off("keydown", handleFailureEnter);
+    $("#answer").focus().select();
   };
 
-  // Enter 키 감지 함수
   const handleFailureEnter = (e) => {
     if (e.key === "Enter") {
-      e.preventDefault(); // 기본 동작 방지
+      e.preventDefault();
       closeModal();
     }
   };
 
-  // 이벤트 등록
   $(document).on("keydown", handleFailureEnter);
   $("#modalCloseBtn").click(closeModal);
 }
@@ -334,7 +637,7 @@ function showFailure() {
 function showSuccess() {
   const modal = $(`
     <div class="success-overlay">
-      <div class="success-modal" style="border-top: 5px solid var(--success);"">
+      <div class="success-modal" style="border-top: 5px solid var(--success);">
         <h2 style="color:var(--success); margin-top:0;">🎉 정답!</h2>
         <p style="font-size:18px;">참 잘하셨습니다!</p>
         <button id="modalNextBtn" class="btn-submit" style="width:100%; margin-top:20px; background:var(--success);">다음 단계로</button>
@@ -385,7 +688,6 @@ function showFinalSuccess() {
 }
 
 function toggleImageZoom(src) {
-  // 이미 열려 있으면 제거
   if (imageZoomOverlay) {
     imageZoomOverlay.remove();
     imageZoomOverlay = null;
@@ -400,9 +702,7 @@ function toggleImageZoom(src) {
     </div>
   `);
 
-  // 클릭 시 닫기
   imageZoomOverlay.on("click", closeImageZoom);
-
   $("body").append(imageZoomOverlay);
 }
 
@@ -414,9 +714,7 @@ function closeImageZoom() {
 }
 
 $(document).on("keydown", function (e) {
-  if (e.key === "Escape") {
-    closeImageZoom();
-  }
+  if (e.key === "Escape") closeImageZoom();
 });
 
 function toggleHint(n) {
@@ -424,16 +722,24 @@ function toggleHint(n) {
   updateStatusBar();
   renderStageButtons();
   loadPuzzle(currentStage);
+  syncProgressWithDB(true);
 }
 
 function selectStage(s) {
   currentStage = s;
+  visitedStages.add(s);
   loadPuzzle(s);
   renderStageButtons();
-  window.scrollTo({ top: 0, behavior: 'smooth' }); // 단계 이동 시 상단으로 스크롤
+  syncProgressWithDB(true);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 $(document).ready(() => {
+  // 10분 자동 로그인 체크
+  if (!checkAutoLogin()) {
+    $("#name-overlay").show();
+    $("#main-game").hide();
+  }
   updateStatusBar();
   renderStageButtons();
   selectStage(1);
