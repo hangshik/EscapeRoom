@@ -4,7 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>제 3 공업단지</title>
+      <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-VHD0QPH39L"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-VHD0QPH39L');
+  </script>
+<!-- jQuery & Supabase SDK -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 :root {
@@ -317,10 +327,24 @@ h1 {
 </div>
 
 <script>
+/* --- Supabase 설정 --- */
+const SUPABASE_URL = 'https://whhmnutvzyqsnbffohqj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndoaG1udXR2enlxc25iZmZvaHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4NTQ2OTYsImV4cCI6MjEwMjQzMDY5Nn0.yMVCwhuiJs_rtuf51zQty3yJfNXMHF2Oauy8y08_2Gc';
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 let studentName = "";
+let studentId = null; // int8 타입의 숫자형 ID
 const SESSION_KEY_NAME = 'industry_student_name';
+const SESSION_KEY_ID = 'industry_student_id';
 const SESSION_KEY_TIME = 'industry_login_time';
+const SESSION_KEY_START = 'industry_start_time';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
+
+/* 데이터베이스 추적 변수 */
+let stageViews = [1];
+let stageWrongCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+let startTimeISO = null;
+let heartbeatInterval = null;
 
 const gridStageData = {
   1: {
@@ -384,28 +408,110 @@ let clearedStages = new Set();
 let userClickSequence = [];
 let totalWrongCount = 0;
 
-/* 세션 및 로그인 관련 함수 */
-function saveSession(name) {
+/* 날짜 비교 함수 (동일 로컬 연/월/일 여부 확인) */
+function isSameDay(d1Str, d2Str) {
+  if (!d1Str || !d2Str) return false;
+  const d1 = new Date(d1Str);
+  const d2 = new Date(d2Str);
+  return d1.getFullYear() === d2.getFullYear() &&
+         d1.getMonth() === d2.getMonth() &&
+         d1.getDate() === d2.getDate();
+}
+
+/* --- Supabase 데이터동기화 함수 (e201 테이블) --- */
+async function syncToSupabase(isOffline = false) {
+  if (!studentName || !studentId) return;
+
+  const payload = {
+    id: Number(studentId),
+    student_name: studentName,
+    current_stage: currentStage,
+    cleared_stages: Array.from(clearedStages),
+    stage_views: Array.from(new Set(stageViews)),
+    stage_wrong_count: stageWrongCount,
+    total_wrong_count: totalWrongCount,
+    is_online: !isOffline,
+    updated_at: new Date().toISOString()
+  };
+
+  if (startTimeISO) payload.start_time = startTimeISO;
+  if (isOffline) payload.ended_at = new Date().toISOString();
+
+  try {
+    await _supabase.from('e201').upsert(payload);
+  } catch (err) {
+    console.error("Supabase Sync Error:", err);
+  }
+}
+
+function startHeartbeat() {
+  stopHeartbeat();
+  heartbeatInterval = setInterval(() => {
+    syncToSupabase(false);
+  }, 10000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+}
+
+/* 세션 관리 함수 */
+function saveSession(name, id, startTime) {
   localStorage.setItem(SESSION_KEY_NAME, name);
+  localStorage.setItem(SESSION_KEY_ID, id.toString());
   localStorage.setItem(SESSION_KEY_TIME, Date.now().toString());
+  localStorage.setItem(SESSION_KEY_START, startTime);
 }
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY_NAME);
+  localStorage.removeItem(SESSION_KEY_ID);
   localStorage.removeItem(SESSION_KEY_TIME);
+  localStorage.removeItem(SESSION_KEY_START);
 }
 
-function checkAutoLogin() {
+async function checkAutoLogin() {
   const savedName = localStorage.getItem(SESSION_KEY_NAME);
+  const savedId = localStorage.getItem(SESSION_KEY_ID);
   const savedTime = localStorage.getItem(SESSION_KEY_TIME);
+  const savedStart = localStorage.getItem(SESSION_KEY_START);
 
-  if (savedName && savedTime) {
+  if (savedName && savedId && savedTime) {
     const elapsed = Date.now() - parseInt(savedTime, 10);
     if (elapsed < TEN_MINUTES_MS) {
       studentName = savedName;
+      studentId = parseInt(savedId, 10);
+      startTimeISO = savedStart || new Date().toISOString();
+
+      // DB에서 현재 상태 복원
+      try {
+        const { data } = await _supabase
+          .from('e201')
+          .select('*')
+          .eq('id', studentId)
+          .single();
+
+        if (data) {
+          currentStage = data.current_stage || 1;
+          clearedStages = new Set(data.cleared_stages || []);
+          stageViews = data.stage_views || [1];
+          stageWrongCount = data.stage_wrong_count || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+          totalWrongCount = data.total_wrong_count || 0;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      
       updateUserDisplay();
+      setStage(currentStage);
       $("#name-overlay").hide();
       $("#main-game").show();
+
+      syncToSupabase(false);
+      startHeartbeat();
       return true;
     } else {
       clearSession();
@@ -419,26 +525,79 @@ function updateUserDisplay() {
   $("#header-student-name").text(studentName);
 }
 
-function handleLogin() {
+/* 로그인 처리 함수 (동일한 날짜 & 동일한 이름 처리 추가) */
+async function handleLogin() {
   const input = $("#user-name-input").val().trim();
   if (!input) {
     alert("성명을 입력해 주세요.");
     return;
   }
 
-  // 관리자 및 지정 코드 입력 시 대시보드 이동
   if (input === "58009859" || input === "관리자") {
     window.location.href = "dashboard.html";
     return;
   }
 
-  studentName = input;
-  saveSession(studentName);
-  updateUserDisplay();
+  const $btn = $("#name-overlay button");
+  $btn.prop("disabled", true).text("확인 중...");
 
-  $("#name-overlay").fadeOut(300, () => {
-    $("#main-game").fadeIn(300);
-  });
+  studentName = input;
+  const todayISO = new Date().toISOString();
+
+  try {
+    // 오늘 동일한 학생 이름으로 접속한 데이터가 있는지 Supabase 조회
+    const { data, error } = await _supabase
+      .from('e201')
+      .select('*')
+      .eq('student_name', studentName)
+      .order('start_time', { ascending: false });
+
+    let existingRecord = null;
+    if (data && data.length > 0) {
+      for (const rec of data) {
+        if (isSameDay(rec.start_time, todayISO)) {
+          existingRecord = rec;
+          break; // 가장 최근 오늘 기록 사용
+        }
+      }
+    }
+
+    if (existingRecord) {
+      // 1. 같은 날짜 & 같은 이름 기록이 있으면 -> 이어쓰기
+      studentId = Number(existingRecord.id);
+      currentStage = existingRecord.current_stage || 1;
+      clearedStages = new Set(existingRecord.cleared_stages || []);
+      stageViews = existingRecord.stage_views || [1];
+      stageWrongCount = existingRecord.stage_wrong_count || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      totalWrongCount = existingRecord.total_wrong_count || 0;
+      startTimeISO = existingRecord.start_time;
+    } else {
+      // 2. 다른 이름이거나 오늘 기록이 없으면 -> 새로 시작
+      studentId = Date.now();
+      currentStage = 1;
+      clearedStages = new Set();
+      stageViews = [1];
+      stageWrongCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      totalWrongCount = 0;
+      startTimeISO = todayISO;
+    }
+
+    saveSession(studentName, studentId, startTimeISO);
+    updateUserDisplay();
+    setStage(currentStage);
+
+    await syncToSupabase(false);
+    startHeartbeat();
+
+    $("#name-overlay").fadeOut(300, () => {
+      $("#main-game").fadeIn(300);
+    });
+  } catch (err) {
+    console.error("로그인 처리 오류:", err);
+    alert("로그인 중 오류가 발생했습니다.");
+  } finally {
+    $btn.prop("disabled", false).text("확인");
+  }
 }
 
 function openLogoutModal() {
@@ -462,10 +621,18 @@ function openLogoutModal() {
   $("#confirmLogoutBtn").click(executeLogout);
 }
 
-function executeLogout() {
+async function executeLogout() {
+  if (studentName && studentId) {
+    await syncToSupabase(true);
+  }
+  stopHeartbeat();
   clearSession();
+
   studentName = "";
+  studentId = null;
   totalWrongCount = 0;
+  stageWrongCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+  stageViews = [1];
   clearedStages.clear();
   $("#wrong-count").text(0);
 
@@ -476,13 +643,17 @@ function executeLogout() {
   });
 }
 
-/* 스테이지 및 게임 제어 함수 */
+/* 게임 및 단계 제어 */
 function setStage(stage) {
   currentStage = stage;
   userClickSequence = [];
+  if (!stageViews.includes(stage)) {
+    stageViews.push(stage);
+  }
   renderStageButtons();
   initializeGrid();
   $("#wrong-count").text(totalWrongCount);
+  syncToSupabase(false);
 }
 
 function renderStageButtons() {
@@ -542,10 +713,13 @@ function checkAnswer() {
   if (isCorrect) {
     clearedStages.add(currentStage);
     renderStageButtons();
+    syncToSupabase(false);
     showSuccess();
   } else {
     totalWrongCount++;
+    stageWrongCount[currentStage] = (stageWrongCount[currentStage] || 0) + 1;
     $("#wrong-count").text(totalWrongCount);
+    syncToSupabase(false);
     showFailure();
   }
 }
@@ -615,6 +789,36 @@ function showFinalSuccess() {
   $("body").append(finalLayer);
 }
 
+/* 페이지 이탈 시 오프라인 전송 */
+window.addEventListener('beforeunload', () => {
+  if (studentName && studentId) {
+    const payload = JSON.stringify({
+      id: Number(studentId),
+      student_name: studentName,
+      current_stage: currentStage,
+      cleared_stages: Array.from(clearedStages),
+      stage_views: Array.from(new Set(stageViews)),
+      stage_wrong_count: stageWrongCount,
+      total_wrong_count: totalWrongCount,
+      is_online: false,
+      updated_at: new Date().toISOString(),
+      ended_at: new Date().toISOString()
+    });
+
+    fetch(`${SUPABASE_URL}/rest/v1/e201?on_conflict=id`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: payload,
+      keepalive: true
+    });
+  }
+});
+
 /* 이벤트 바인딩 */
 $('#user-name-input').on('keypress', function(e) {
   if (e.which === 13) handleLogin();
@@ -627,12 +831,14 @@ $(document).on("keydown", function(e) {
   }
 });
 
-$(document).ready(() => {
-  if (!checkAutoLogin()) {
+$(document).ready(async () => {
+  const loggedIn = await checkAutoLogin();
+  if (!loggedIn) {
     $("#name-overlay").show();
+    $("#main-game").show();
     $("#main-game").hide();
+    setStage(1);
   }
-  setStage(1);
 });
 </script>
 
