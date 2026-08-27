@@ -1,14 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="author" content="Math Homepage">
+  <meta name="author" content="Personal Page">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <title>Math Homepage</title>
+  <title>개인 LINK</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/style.css">
+  
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     body {
       font-family: 'Noto Sans KR', sans-serif;
@@ -25,81 +28,805 @@
       margin: 2rem auto;
       border-radius: 8px;
     }
-    .logo {
-      text-align: center;
-      font-size: 2rem;
-      font-weight: 700;
+    
+    /* 상단 로고 헤더 영역 가운데 정렬 */
+    .logo-container {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       border-bottom: 2px solid #007bff;
       padding-bottom: 0.7rem;
+      margin-bottom: 1rem;
+    }
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
     }
     .logo em {
       color: #007bff;
       font-style: normal;
     }
-    .main-menu-item {
-      display: block;
+    #btn-toggle-add-card {
+      position: absolute;
+      right: 0;
+    }
+    
+    /* 입력 및 메뉴 관리 섹션 */
+    .admin-card {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .admin-title {
+      font-size: 1.1rem;
+      color: #007bff;
+      margin-bottom: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .input-ko { ime-mode: active; }
+    .input-en { ime-mode: disabled; }
+
+    /* 메인 메뉴 헤더 가운데 정렬 */
+    .main-menu-header {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       background: #007bff;
       color: white;
-      padding: 0.7rem;
+      padding: 0.7rem 1rem;
       border-radius: 8px;
-      text-align: center;
-      font-size: 1.5em;
-      margin: 0.56rem 0;
-      text-decoration: none;
-      transition: all 0.3s ease;
+      margin: 1rem 0 0.5rem 0;
+      font-size: 20px;
       font-weight: bold;
-      font-size: 24px;
+      word-break: break-all;
+      user-select: none;
+      text-align: center;
     }
+
+    .btn-menu-edit {
+      position: absolute;
+      right: 1rem;
+      color: white;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .btn-menu-edit:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    /* 서브 메뉴 컨테이너 */
     .sub-menu {
-      list-style: decimal;
+      list-style: none;
       padding: 1rem;
       background: #f1f3f5;
       border-radius: 8px;
-      font-size: 18px;
-      padding-left: 20px;
+      font-size: 17px;
+      margin-bottom: 1rem;
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.8rem 1rem;
     }
+
+    @media (max-width: 576px) {
+      .sub-menu {
+        grid-auto-flow: row !important;
+        grid-template-columns: 1fr !important;
+      }
+      #btn-toggle-add-card {
+        position: static;
+      }
+      .logo-container {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+    }
+
+    .sub-menu li {
+      margin-bottom: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      word-break: break-all;
+    }
+
+    .sub-menu.edit-mode {
+      grid-auto-flow: row !important;
+      grid-template-columns: 1fr !important;
+    }
+
     .sub-menu a {
       color: #333;
       text-decoration: none;
-      padding: 0.6rem 0.3rem;
-      display: inline-block;
       transition: all 0.3s ease;
+      word-break: break-all;
     }
+    .sub-menu a:hover {
+      color: #007bff;
+    }
+    
+    .item-desc {
+      font-size: 14px;
+      color: #6c757d;
+      font-weight: normal;
+      margin-top: 0.2rem;
+      padding-left: 1.2rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-wrap: break-word;
+    }
+
+    .draggable-menu-badge {
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .draggable-menu-badge:active {
+      cursor: grabbing;
+    }
+    .dragging {
+      opacity: 0.4;
+    }
+
+    .drag-item {
+      background: #ffffff;
+      border: 1px dashed #007bff;
+      padding: 0.8rem;
+      border-radius: 6px;
+    }
+    .drag-handle {
+      color: #adb5bd;
+      cursor: grab;
+      margin-right: 4px;
+    }
+
+    .edit-item-num {
+      font-size: 15px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn-del {
+      color: #dc3545;
+      background: none;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 4px;
+      opacity: 0.7;
+    }
+    .btn-del:hover { opacity: 1; }
+
+    textarea.auto-expand {
+      resize: none;
+      overflow-y: hidden;
+      min-height: 38px;
+    }
+
+    .is-hidden { display: none !important; }
   </style>
 </head>
 <body>
+
   <div class="main-content">
-    <div class="logo"><em>개인</em> PAGE</div>
-      
-    <div class="main-menu-item">보드게임</div>
-    <ul class="sub-menu">
-      <a href="../qr/e2-1.png">1.</a> <a href="BoardGame/Wolf/">타불라의 늑대</a><br>
-      <a href="../qr/e2-1.png">2.</a> <a href="BoardGame/MondrianBlock/">몬드리안 블록 퍼즐</a><br>
-    </ul>
+    <!-- 브랜드 로고 헤더 가운데 정렬 -->
+    <div class="logo-container">
+      <div class="logo"><em>개인</em> LINK</div>
+      <button id="btn-toggle-add-card" class="btn btn-primary btn-sm px-3">
+        <i class="fas fa-plus"></i> 항목 추가
+      </button>
+    </div>
 
-    <div class="main-menu-item">수학 관련</div>
-    <ul class="sub-menu">
-      <a href="https://erich-friedman.github.io/puzzle/">1. 퍼즐(erich-friedman)</a><br>
-      <a href="https://imaginary.github.io/applauncher2/">2. imaginary</a><br>
-    </ul>
+    <!-- ➕ 메뉴 / 항목 등록 영역 -->
+    <div id="add-card" class="admin-card is-hidden">
+      <div class="admin-title">
+        <span id="admin-card-title"><i class="fas fa-pen"></i> 항목 입력 <small style="font-size:11px; color:#6c757d; font-weight:normal;">(Ctrl+Enter로 등록 가능)</small></span>
+        <div class="d-flex gap-2">
+          <button id="btn-reset-item" class="btn btn-sm btn-outline-secondary" style="font-size: 12px;">초기화</button>
+          <button id="btn-toggle-menu-mgr" class="btn btn-sm btn-outline-secondary" style="font-size: 12px;">메뉴 관리</button>
+        </div>
+      </div>
 
-    <div class="main-menu-item">컴퓨터 관련</div>
-    <ul class="sub-menu">
-      <a href="https://blog.naver.com/parkmounggyu/223426852106">1. 카메라 무음 설정</a><br>
-      <a href="https://blog.naver.com/chfhd3066/223205990193">2. 긴 화면 전체 스크린샷 캡쳐</a><br>
-      <a href="https://shana.pe.kr/index.php?mid=shanaencoder_board&page=2&document_srl=69722">3. 샤나인코더(동영상 크기 편집)</a><br>
-    -filter:v "crop=290:163:325:120" <br>
-    앞의 숫자 크기(x,y), 뒤에 숫자 위치(x,y)
-    </ul>
+      <!-- 메뉴 관리 섹션 -->
+      <div id="menu-mgr-box" class="mb-2 p-3 border rounded bg-white is-hidden">
+        <div class="fw-bold mb-2 text-center" style="font-size: 14px; color: #007bff;">새 메뉴 추가</div>
+        <div class="input-group input-group-sm mb-3">
+          <input type="text" id="new-menu-name" class="form-control input-ko" lang="ko" placeholder="새 메뉴 이름 입력">
+          <button id="btn-save-menu" class="btn btn-outline-primary">추가</button>
+        </div>
 
-    <div class="main-menu-item">기타</div>
-    <ul class="sub-menu">
-      <a href="timer.html">1. 타이머</a><br>
-    </ul>
+        <div class="fw-bold mb-1 d-flex justify-content-between align-items-center" style="font-size: 14px; color: #495057;">
+          <span>메뉴 순서 및 편집 <small class="text-muted fw-normal">(드래그: 순서)</small></span>
+          <button id="btn-toggle-menu-edit-mode" class="btn btn-xs btn-outline-secondary" style="font-size: 11px;">
+            <i class="fas fa-edit"></i> 수정
+          </button>
+        </div>
+        <!-- 메뉴 뱃지 목록 가운데 정렬 -->
+        <div id="menu-del-list" class="d-flex flex-wrap justify-content-center gap-2 pt-1"></div>
+      </div>
 
+      <!-- 항목 입력 폼 -->
+      <div id="item-input-form" class="row g-2">
+        <div class="col-md-4">
+          <select id="input-menu" class="form-select form-select-sm text-center"></select>
+        </div>
+        <div class="col-md-8">
+          <input type="text" id="input-title" class="form-control form-control-sm input-ko" lang="ko" placeholder="제목 (필수, 한글)">
+        </div>
+        <div class="col-md-12">
+          <input type="text" id="input-link" class="form-control form-control-sm input-en" lang="en" placeholder="링크 (선택, 영문 https://...)">
+        </div>
+        <div class="col-md-10">
+          <textarea id="input-desc" class="form-control form-control-sm input-ko auto-expand" lang="ko" rows="1" placeholder="설명 (선택, 한글)"></textarea>
+        </div>
+        <div class="col-md-2">
+          <button id="btn-add-item" class="btn btn-primary btn-sm w-100 h-100">등록</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📂 메뉴 및 항목 전체 표시 영역 -->
+    <div id="content-container"></div>
   </div>
+
+  <!-- 메뉴 이름 수정 모달 -->
+  <div class="modal fade" id="menuEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h5 class="modal-title fs-6">메뉴 이름 수정</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="modal-menu-input" class="form-control form-control-sm input-ko" lang="ko" placeholder="새 메뉴 이름 입력">
+        </div>
+        <div class="modal-footer py-1">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+          <button type="button" id="btn-modal-save-menu" class="btn btn-primary btn-sm">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메뉴 삭제 확인 모달 -->
+  <div class="modal fade" id="menuDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h5 class="modal-title fs-6 text-danger">메뉴 삭제</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-3">
+          <p class="mb-1 fw-bold" id="delete-modal-target-text"></p>
+          <small class="text-muted">해당 메뉴의 모든 항목이 함께 삭제됩니다.</small>
+        </div>
+        <div class="modal-footer py-1">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+          <button type="button" id="btn-modal-confirm-delete" class="btn btn-danger btn-sm">삭제</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://whhmnutvzyqsnbffohqj.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_rjW_fKjm6_2sGeyN08_w-g_MNdu0w9i";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let menus = [];
+    let items = [];
+    let editingMenuName = null;
+    let targetRenameMenu = null;
+    let targetDeleteMenu = null;
+    let isMenuEditModeActive = false;
+
+    const btnToggleAddCard = document.getElementById("btn-toggle-add-card");
+    const addCard = document.getElementById("add-card");
+    const adminCardTitle = document.getElementById("admin-card-title");
+    const itemInputForm = document.getElementById("item-input-form");
+
+    const inputMenu = document.getElementById("input-menu");
+    const inputTitle = document.getElementById("input-title");
+    const inputLink = document.getElementById("input-link");
+    const inputDesc = document.getElementById("input-desc");
+    const btnAddItem = document.getElementById("btn-add-item");
+    const btnResetItem = document.getElementById("btn-reset-item");
+    const contentContainer = document.getElementById("content-container");
+
+    const btnToggleMenuMgr = document.getElementById("btn-toggle-menu-mgr");
+    const menuMgrBox = document.getElementById("menu-mgr-box");
+    const newMenuName = document.getElementById("new-menu-name");
+    const btnSaveMenu = document.getElementById("btn-save-menu");
+    const menuDelList = document.getElementById("menu-del-list");
+    const btnToggleMenuEditMode = document.getElementById("btn-toggle-menu-edit-mode");
+
+    const menuEditModalEl = document.getElementById("menuEditModal");
+    const menuEditModal = new bootstrap.Modal(menuEditModalEl);
+    const modalMenuInput = document.getElementById("modal-menu-input");
+    const btnModalSaveMenu = document.getElementById("btn-modal-save-menu");
+
+    const menuDeleteModalEl = document.getElementById("menuDeleteModal");
+    const menuDeleteModal = new bootstrap.Modal(menuDeleteModalEl);
+    const deleteModalTargetText = document.getElementById("delete-modal-target-text");
+    const btnModalConfirmDelete = document.getElementById("btn-modal-confirm-delete");
+
+    async function initData() {
+      const [menuRes, itemRes] = await Promise.all([
+        supabaseClient.from('menu').select('*').order('display_order', { ascending: true }),
+        supabaseClient.from('link').select('*').order('id', { ascending: true })
+      ]);
+
+      if (menuRes.error) console.error("메뉴 불러오기 실패:", menuRes.error);
+      else menus = menuRes.data || [];
+
+      if (itemRes.error) console.error("항목 불러오기 실패:", itemRes.error);
+      else items = itemRes.data || [];
+
+      renderAll();
+    }
+
+    function openMenuRenameModal(menuObj) {
+      targetRenameMenu = menuObj;
+      modalMenuInput.value = menuObj.name;
+      menuEditModal.show();
+      setTimeout(() => modalMenuInput.focus(), 300);
+    }
+
+    function autoResizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = (el.scrollHeight + 2) + 'px';
+    }
+
+    inputDesc.addEventListener("input", function() { autoResizeTextarea(this); });
+
+    btnToggleAddCard.addEventListener("click", () => {
+      const isHidden = addCard.classList.contains("is-hidden");
+      if (isHidden) {
+        addCard.classList.remove("is-hidden");
+        itemInputForm.classList.remove("is-hidden");
+        menuMgrBox.classList.add("is-hidden");
+        btnToggleMenuMgr.textContent = "메뉴 관리";
+        btnToggleMenuMgr.classList.remove("btn-secondary");
+        btnToggleMenuMgr.classList.add("btn-outline-secondary");
+        adminCardTitle.innerHTML = `<i class="fas fa-pen"></i> 항목 입력 <small style="font-size:11px; color:#6c757d; font-weight:normal;">(Ctrl+Enter로 등록 가능)</small>`;
+        inputTitle.focus();
+      } else {
+        addCard.classList.add("is-hidden");
+        editingMenuName = null;
+      }
+      renderContent();
+    });
+
+    btnToggleMenuMgr.addEventListener("click", () => {
+      const isMenuMgrHidden = menuMgrBox.classList.contains("is-hidden");
+      if (isMenuMgrHidden) {
+        menuMgrBox.classList.remove("is-hidden");
+        itemInputForm.classList.add("is-hidden");
+        btnToggleMenuMgr.textContent = "항목 입력으로";
+        btnToggleMenuMgr.classList.remove("btn-outline-secondary");
+        btnToggleMenuMgr.classList.add("btn-secondary");
+        adminCardTitle.innerHTML = `<i class="fas fa-tasks"></i> 메뉴 관리`;
+        newMenuName.focus();
+      } else {
+        menuMgrBox.classList.add("is-hidden");
+        itemInputForm.classList.remove("is-hidden");
+        btnToggleMenuMgr.textContent = "메뉴 관리";
+        btnToggleMenuMgr.classList.remove("btn-secondary");
+        btnToggleMenuMgr.classList.add("btn-outline-secondary");
+        adminCardTitle.innerHTML = `<i class="fas fa-pen"></i> 항목 입력 <small style="font-size:11px; color:#6c757d; font-weight:normal;">(Ctrl+Enter로 등록 가능)</small>`;
+        inputTitle.focus();
+      }
+    });
+
+    [inputTitle, inputLink, inputDesc].forEach(inputEl => {
+      inputEl.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key === "Enter") {
+          e.preventDefault();
+          btnAddItem.click();
+        }
+      });
+    });
+
+    btnResetItem.addEventListener("click", () => {
+      inputTitle.value = "";
+      inputLink.value = "";
+      inputDesc.value = "";
+      inputDesc.style.height = "auto";
+      inputTitle.focus();
+    });
+
+    function renderAll() {
+      renderSelectOptions();
+      renderContent();
+      renderMenuDelList();
+    }
+
+    function renderSelectOptions() {
+      inputMenu.innerHTML = "";
+      menus.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.name;
+        inputMenu.appendChild(opt);
+      });
+    }
+
+    btnSaveMenu.addEventListener("click", async () => {
+      const name = newMenuName.value.trim();
+      if (!name) return;
+
+      if (menus.some(m => m.name === name)) {
+        alert("이미 존재하는 메뉴 이름입니다.");
+        return;
+      }
+
+      const nextOrder = menus.length > 0 ? Math.max(...menus.map(m => m.display_order)) + 1 : 1;
+
+      const { data, error } = await supabaseClient
+        .from('menu')
+        .insert([{ name, display_order: nextOrder }])
+        .select();
+
+      if (error) {
+        console.error("메뉴 추가 실패:", error);
+      } else if (data && data.length > 0) {
+        menus.push(data[0]);
+        newMenuName.value = "";
+        renderAll();
+        inputMenu.value = data[0].id;
+      }
+    });
+
+    function renderContent() {
+      contentContainer.innerHTML = "";
+      const isAddCardVisible = !addCard.classList.contains("is-hidden");
+
+      menus.forEach(menuObj => {
+        const menuName = menuObj.name;
+        const menuItems = items.filter(item => item.menu_id === menuObj.id || item.menu === menuName);
+
+        const menuHeader = document.createElement("div");
+        menuHeader.className = "main-menu-header";
+
+        const titleSpan = document.createElement("span");
+        titleSpan.textContent = menuName;
+        // 🔒 클릭/더블클릭 수정 이벤트 제거 (단순 텍스트로 표출)
+
+        menuHeader.appendChild(titleSpan);
+
+        if (isAddCardVisible) {
+          const editBtn = document.createElement("button");
+          editBtn.className = "btn-menu-edit";
+          editBtn.innerHTML = editingMenuName === menuName 
+            ? `<i class="fas fa-check"></i> 완료` 
+            : `<i class="fas fa-edit"></i> 수정`;
+
+          editBtn.addEventListener("click", () => {
+            editingMenuName = (editingMenuName === menuName) ? null : menuName;
+            renderContent();
+          });
+
+          menuHeader.appendChild(editBtn);
+        }
+
+        contentContainer.appendChild(menuHeader);
+
+        const subMenuUl = document.createElement("ul");
+        subMenuUl.className = "sub-menu";
+
+        if (editingMenuName === menuName) {
+          subMenuUl.classList.add("edit-mode");
+          if (menuItems.length === 0) {
+            subMenuUl.innerHTML = `<li style="color:#888; font-weight:normal; font-size:14px; justify-content: center;">편집할 항목이 없습니다.</li>`;
+          } else {
+            menuItems.forEach((item, index) => {
+              const li = document.createElement("li");
+              li.className = "drag-item d-flex flex-column gap-2";
+              li.draggable = true;
+              li.dataset.id = item.id;
+
+              li.innerHTML = `
+                <div class="d-flex align-items-center w-100 gap-2">
+                  <i class="fas fa-grip-vertical drag-handle"></i>
+                  <span class="fw-bold text-primary edit-item-num">${index + 1}.</span>
+                  <input type="text" class="form-control form-control-sm edit-title input-ko" value="${item.title}" placeholder="제목 (필수)">
+                  <button class="btn-del btn-item-delete" title="항목 삭제"><i class="fas fa-trash"></i></button>
+                </div>
+                <div class="w-100 ps-4">
+                  <input type="text" class="form-control form-control-sm edit-link input-en" value="${item.link || ''}" placeholder="링크 (선택)">
+                </div>
+                <div class="w-100 ps-4">
+                  <textarea class="form-control form-control-sm edit-desc input-ko auto-expand" rows="1" placeholder="설명 (선택)">${item.desc || ''}</textarea>
+                </div>
+              `;
+
+              const inputTitleEl = li.querySelector(".edit-title");
+              const inputLinkEl = li.querySelector(".edit-link");
+              const inputDescEl = li.querySelector(".edit-desc");
+              const btnDel = li.querySelector(".btn-item-delete");
+
+              autoResizeTextarea(inputDescEl);
+              inputDescEl.addEventListener("input", function() { autoResizeTextarea(this); });
+
+              const updateItemData = async () => {
+                const newTitle = inputTitleEl.value.trim();
+                const newLink = inputLinkEl.value.trim();
+                const newDesc = inputDescEl.value.trim();
+
+                const { error } = await supabaseClient
+                  .from('link')
+                  .update({ title: newTitle, link: newLink, desc: newDesc })
+                  .eq('id', item.id);
+
+                if (!error) {
+                  item.title = newTitle;
+                  item.link = newLink;
+                  item.desc = newDesc;
+                }
+              };
+
+              inputTitleEl.addEventListener("change", updateItemData);
+              inputLinkEl.addEventListener("change", updateItemData);
+              inputDescEl.addEventListener("change", updateItemData);
+
+              btnDel.addEventListener("click", async () => {
+                const { error } = await supabaseClient.from('link').delete().eq('id', item.id);
+                if (!error) {
+                  items = items.filter(i => i.id !== item.id);
+                  renderContent();
+                }
+              });
+
+              subMenuUl.appendChild(li);
+            });
+          }
+        } else {
+          if (menuItems.length === 0) {
+            subMenuUl.style.gridAutoFlow = "row";
+            subMenuUl.innerHTML = `<li style="color:#888; font-weight:normal; font-size:14px; grid-column: 1/-1; justify-content: center;">등록된 항목이 없습니다.</li>`;
+          } else {
+            const rowCount = Math.ceil(menuItems.length / 2);
+            subMenuUl.style.gridTemplateRows = `repeat(${rowCount}, auto)`;
+
+            menuItems.forEach((item, index) => {
+              const li = document.createElement("li");
+              const contentDiv = document.createElement("div");
+              contentDiv.style.width = "100%";
+              
+              const numText = `${index + 1}. `;
+              if (item.link) {
+                contentDiv.innerHTML = `${numText}<a href="${item.link}">${item.title}</a>`;
+              } else {
+                contentDiv.innerHTML = `${numText}<span>${item.title}</span>`;
+              }
+
+              if (item.desc) {
+                const descDiv = document.createElement("div");
+                descDiv.className = "item-desc";
+                descDiv.textContent = item.desc;
+                contentDiv.appendChild(descDiv);
+              }
+
+              li.appendChild(contentDiv);
+              subMenuUl.appendChild(li);
+            });
+          }
+        }
+
+        contentContainer.appendChild(subMenuUl);
+      });
+    }
+
+    btnAddItem.addEventListener("click", async () => {
+      const title = inputTitle.value.trim();
+      const link = inputLink.value.trim();
+      const desc = inputDesc.value.trim();
+      const menuId = Number(inputMenu.value);
+      const selectedMenuObj = menus.find(m => m.id === menuId);
+
+      if (!title) {
+        alert("제목을 입력해주세요.");
+        inputTitle.focus();
+        return;
+      }
+
+      if (!selectedMenuObj) {
+        alert("선택된 메뉴를 찾을 수 없습니다.");
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from('link')
+        .insert([{ menu_id: menuId, menu: selectedMenuObj.name, title, link, desc }])
+        .select();
+
+      if (error) {
+        console.error("항목 등록 오류:", error);
+      } else if (data && data.length > 0) {
+        items.push(data[0]);
+
+        inputTitle.value = "";
+        inputLink.value = "";
+        inputDesc.value = "";
+        inputDesc.style.height = "auto";
+
+        renderAll();
+
+        inputMenu.value = menuId;
+        inputTitle.focus();
+      }
+    });
+
+    btnToggleMenuEditMode.addEventListener("click", () => {
+      isMenuEditModeActive = !isMenuEditModeActive;
+      btnToggleMenuEditMode.classList.toggle("btn-secondary", isMenuEditModeActive);
+      btnToggleMenuEditMode.classList.toggle("btn-outline-secondary", !isMenuEditModeActive);
+      btnToggleMenuEditMode.innerHTML = isMenuEditModeActive 
+        ? `<i class="fas fa-check"></i> 완료` 
+        : `<i class="fas fa-edit"></i> 수정`;
+      renderMenuDelList();
+    });
+
+    function renderMenuDelList() {
+      menuDelList.innerHTML = "";
+
+      menus.forEach((menuObj) => {
+        const badge = document.createElement("span");
+        badge.className = "badge bg-primary d-flex align-items-center gap-1 draggable-menu-badge p-2";
+        badge.style.fontSize = "13px";
+        badge.draggable = true;
+        badge.dataset.id = menuObj.id;
+
+        // 📌 '수정' 버튼 클릭 시에만 연필/삭제 아이콘이 표시됨
+        const editButtonsHtml = isMenuEditModeActive ? `
+          <i class="fas fa-pen ms-1 edit-menu-btn" style="cursor:pointer; font-size:11px;" title="메뉴 이름 수정"></i>
+          <i class="fas fa-times-circle ms-1 delete-menu-btn" style="cursor:pointer;" title="메뉴 삭제"></i>
+        ` : '';
+
+        badge.innerHTML = `
+          <i class="fas fa-bars opacity-50 me-1" title="드래그하여 순서 변경"></i> 
+          <span class="menu-name-text">${menuObj.name}</span> 
+          ${editButtonsHtml}
+        `;
+
+        // 🔒 더블클릭 이벤트 제거됨
+
+        if (isMenuEditModeActive) {
+          // ✏️ 메뉴 관리의 '수정' 모드에서 연필 아이콘 클릭 시에만 이름 수정 가능
+          badge.querySelector(".edit-menu-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            openMenuRenameModal(menuObj);
+          });
+
+          badge.querySelector(".delete-menu-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            targetDeleteMenu = menuObj;
+            deleteModalTargetText.textContent = `'${menuObj.name}' 메뉴를 삭제하시겠습니까?`;
+            menuDeleteModal.show();
+          });
+        }
+
+        badge.addEventListener("dragstart", () => badge.classList.add("dragging"));
+        badge.addEventListener("dragend", () => badge.classList.remove("dragging"));
+
+        menuDelList.appendChild(badge);
+      });
+
+      menuDelList.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const draggingBadge = menuDelList.querySelector(".dragging");
+        const siblings = [...menuDelList.querySelectorAll(".draggable-menu-badge:not(.dragging)")];
+
+        const nextSibling = siblings.find(sibling => {
+          return e.clientX <= sibling.getBoundingClientRect().left + sibling.offsetWidth / 2;
+        });
+
+        if (nextSibling) menuDelList.insertBefore(draggingBadge, nextSibling);
+        else menuDelList.appendChild(draggingBadge);
+      });
+
+      menuDelList.addEventListener("drop", async () => {
+        const badgeElements = [...menuDelList.querySelectorAll(".draggable-menu-badge")];
+        const updatedMenus = [];
+
+        for (let i = 0; i < badgeElements.length; i++) {
+          const menuId = Number(badgeElements[i].dataset.id);
+          const menuObj = menus.find(m => m.id === menuId);
+          if (menuObj) {
+            menuObj.display_order = i + 1;
+            updatedMenus.push(menuObj);
+
+            await supabaseClient
+              .from('menu')
+              .update({ display_order: i + 1 })
+              .eq('id', menuId);
+          }
+        }
+
+        menus.sort((a, b) => a.display_order - b.display_order);
+        renderSelectOptions();
+        renderContent();
+      });
+    }
+
+    btnModalSaveMenu.addEventListener("click", async () => {
+      if (!targetRenameMenu) return;
+
+      const newName = modalMenuInput.value.trim();
+      const oldName = targetRenameMenu.name;
+
+      if (newName && newName !== oldName) {
+        if (menus.some(m => m.name === newName)) {
+          alert("이미 존재하는 메뉴 이름입니다.");
+          return;
+        }
+
+        const { error } = await supabaseClient
+          .from('menu')
+          .update({ name: newName })
+          .eq('id', targetRenameMenu.id);
+
+        if (error) {
+          console.error("메뉴 수정 오류:", error);
+          alert("메뉴 수정에 실패했습니다.");
+        } else {
+          await supabaseClient.from('link').update({ menu: newName }).eq('menu_id', targetRenameMenu.id);
+
+          targetRenameMenu.name = newName;
+          items.forEach(i => {
+            if (i.menu_id === targetRenameMenu.id) i.menu = newName;
+          });
+
+          if (editingMenuName === oldName) editingMenuName = newName;
+          renderAll();
+        }
+      }
+
+      menuEditModal.hide();
+    });
+
+    modalMenuInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") btnModalSaveMenu.click();
+    });
+
+    btnModalConfirmDelete.addEventListener("click", async () => {
+      if (!targetDeleteMenu) return;
+
+      const { error } = await supabaseClient
+        .from('menu')
+        .delete()
+        .eq('id', targetDeleteMenu.id);
+
+      if (error) {
+        console.error("메뉴 삭제 오류:", error);
+        alert("메뉴 삭제에 실패했습니다.");
+      } else {
+        menus = menus.filter(m => m.id !== targetDeleteMenu.id);
+        items = items.filter(i => i.menu_id !== targetDeleteMenu.id);
+
+        if (editingMenuName === targetDeleteMenu.name) editingMenuName = null;
+        renderAll();
+      }
+
+      menuDeleteModal.hide();
+    });
+
+    document.addEventListener("DOMContentLoaded", initData);
+  </script>
+</body>
 </html>
-
-
-
-
